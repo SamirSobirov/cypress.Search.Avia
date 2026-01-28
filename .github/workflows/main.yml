@@ -1,0 +1,27 @@
+name: Global Travel Monitoring
+
+on:
+  schedule:
+    # Запуск каждые 2 часа (00:00, 02:00, 04:00 и т.д. по UTC)
+    - cron: '0 */2 * * *'
+  # Позволяет запустить тест вручную кнопкой в интерфейсе GitHub
+  workflow_dispatch:
+
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
+        env:
+          # Передаем секреты из GitHub в Cypress
+          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+          # ДОБАВЬ ЭТИ ДВЕ СТРОЧКИ НИЖЕ:
+          CYPRESS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CYPRESS_TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
