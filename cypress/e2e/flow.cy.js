@@ -19,13 +19,13 @@ describe('Global Travel Flow', () => {
     // 3. Выбор маршрута "Откуда"
     cy.get('#from')
       .clear()
-      .type('Ташкент')
+      .type('Ташкент', { delay: 100 })
       .type('{enter}');
 
     // 4. Выбор маршрута "Куда"
     cy.get('#to')
       .clear()
-      .type('Москва')
+      .type('Москва', { delay: 100 })
       .type('{enter}');
 
     // 5. Выбор даты (через 2 дня)
