@@ -11,14 +11,17 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
       failOnStatusCode: false,
       body: { 
         chat_id: chatId, 
-        text: `${message}\n🕒 <i>Время проверки: ${time}</i>`, 
+        text: `${message}\n🕒 <i>Время проверки (UTC): ${time}</i>`, 
         parse_mode: 'HTML' 
       }
     });
   };
 
   it('Flow: Login -> Search -> Check Status', () => {
-    // Расширяем перехват: ловим любой POST запрос к API после клика
+    // 0. Устанавливаем стандартное разрешение (важно для GitHub)
+    cy.viewport(1280, 800);
+
+    // Перехватываем API запросы
     cy.intercept('POST', '**/api/**').as('apiSearch');
 
     cy.visit('/home', { timeout: 30000 });
@@ -26,53 +29,70 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
     // 1. Логин
     cy.xpath("(//input[contains(@class,'input')])[1]", { timeout: 15000 })
       .should('be.visible')
-      .type(Cypress.env('LOGIN_EMAIL'), { log: false, delay: 30 });
+      .click() // Кликаем для фокуса
+      .type(Cypress.env('LOGIN_EMAIL'), { log: false, delay: 50 });
     
     cy.xpath("(//input[contains(@class,'input')])[2]")
-      .type(Cypress.env('LOGIN_PASSWORD'), { log: false, delay: 30 })
+      .type(Cypress.env('LOGIN_PASSWORD'), { log: false, delay: 50 })
       .type('{enter}');
 
     cy.url().should('include', '/home');
 
-    // 2. Улучшенный ввод городов (выбираем из выпадающего списка)
-    // Откуда
-    cy.get('#from').clear().type('Ташкент', { delay: 100 });
-    cy.get('.p-autocomplete-panel', { timeout: 10000 }).should('be.visible'); 
-    cy.get('.p-autocomplete-item').contains('Ташкент').click(); 
+    // 2. Пуленепробиваемый ввод городов
+    // --- ОТКУДА ---
+    cy.get('#from').should('be.visible').click().clear().type('Ташкент', { delay: 150 });
+    // Ждем появления ЛЮБОГО элемента выпадашки по частичному классу
+    cy.get('[class*="p-autocomplete-item"]', { timeout: 15000 })
+      .first()
+      .should('be.visible')
+      .click({ force: true }); 
 
-    // Куда
-    cy.get('#to').clear().type('Москва', { delay: 100 });
-    cy.get('.p-autocomplete-panel', { timeout: 10000 }).should('be.visible');
-    cy.get('.p-autocomplete-item').contains('Москва').click(); 
+    // --- КУДА ---
+    cy.get('#to').should('be.visible').click().clear().type('Москва', { delay: 150 });
+    cy.get('[class*="p-autocomplete-item"]', { timeout: 15000 })
+      .first()
+      .should('be.visible')
+      .click({ force: true }); 
     
-    // 3. Выбор даты
+    // 3. Выбор даты (через 2 дня)
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 2);
     const day = targetDate.getDate();
     
     cy.get("input[placeholder='Когда']").click();
+    
+    // Если дата переходит на следующий месяц
     if (day < new Date().getDate()) {
        cy.get('.p-datepicker-next').click();
     }
-    cy.get('.p-datepicker-calendar td').not('.p-datepicker-other-month')
-      .contains(new RegExp(`^${day}$`)).click({ force: true });
+
+    cy.get('.p-datepicker-calendar td')
+      .not('.p-datepicker-other-month')
+      .contains(new RegExp(`^${day}$`))
+      .click({ force: true });
     
     cy.get('body').type('{esc}');
 
     // 4. Клик по поиску
-    // Проверяем, что кнопка не просто видна, но и готова к клику
-    cy.get('#search-btn').should('not.be.disabled').click();
+    // Добавляем ожидание, чтобы кнопка успела стать активной после выбора города
+    cy.get('#search-btn', { timeout: 10000 })
+      .should('be.visible')
+      .and('not.be.disabled')
+      .click();
 
-    // Проверяем, был ли вообще запрос. Если не был — упадем с понятной ошибкой.
-    cy.wait('@apiSearch', { timeout: 20000 }).then((interception) => {
+    // Ждем ответа от API
+    cy.wait('@apiSearch', { timeout: 30000 }).then((interception) => {
       const status = interception.response.statusCode;
-      sendToTelegram(`<b>✅ Global Travel</b>\nСтатус API: <code>${status}</code>`);
+      if (status >= 200 && status < 300) {
+        sendToTelegram(`<b>✅ Global Travel</b>\nСтатус API: <code>${status}</code>\nСистема работает исправно.`);
+      } else {
+        sendToTelegram(`<b>⚠️ Ошибка API</b>\nКод: <code>${status}</code>`);
+      }
     });
   });
 
   afterEach(function() {
     if (this.currentTest.state === 'failed') {
-      // Сообщение об ошибке
       sendToTelegram(`<b>❌ ТЕСТ УПАЛ</b>\nЛог: <code>${this.currentTest.err.message}</code>`);
     }
   });

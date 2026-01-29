@@ -18,9 +18,23 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           browser: chrome
+          # Добавляем запись видео, чтобы понять, как вел себя автокомплит
+          video: true 
         env:
-          # Передаем секреты из GitHub в Cypress
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
           CYPRESS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CYPRESS_TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      # --- ЭТОТ БЛОК НУЖНО ДОБАВИТЬ ---
+      # Если тест упадет, GitHub сохранит скриншот и видео. 
+      # Их можно будет скачать во вкладке Actions -> Summary
+      - name: Upload Artifacts (Screenshots & Videos)
+        uses: actions/upload-artifact@v4
+        if: failure() # Выполнять только если тест упал
+        with:
+          name: cypress-results
+          path: |
+            cypress/screenshots
+            cypress/videos
+          retention-days: 7 # Хранить файлы 7 дней
