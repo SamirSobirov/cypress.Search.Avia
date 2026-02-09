@@ -12,7 +12,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@cypress/xpath": "^2.0.3",
-    "cypress": "^15.9.0"
+    "cypress": "^15.10.0"
   },
   "dependencies": {
     "aggregate-error": "^3.1.0",
