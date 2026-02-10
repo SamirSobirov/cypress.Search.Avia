@@ -99,10 +99,16 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
 
     cy.wait('@apiSearch', { timeout: 30000 }).then((interception) => {
       const status = interception.response.statusCode;
+      const responseBody = interception.response.body;
+
+      // Log the status and response body for debugging
+      cy.log(`API Status: ${status}`);
+      cy.log(`API Response: ${JSON.stringify(responseBody)}`);
+
       if (status >= 200 && status < 300) {
         sendToTelegram(`<b>✅ Global Travel</b>\nСтатус API: <code>${status}</code>\nСистема работает исправно.`);
       } else {
-        sendToTelegram(`<b>⚠️ Ошибка API</b>\nКод: <code>${status}</code>`);
+        sendToTelegram(`<b>⚠️ Ошибка API</b>\nКод: <code>${status}</code>\nОтвет: <code>${JSON.stringify(responseBody)}</code>`);
       }
     });
   });
