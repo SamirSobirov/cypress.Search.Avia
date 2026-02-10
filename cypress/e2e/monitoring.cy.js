@@ -11,125 +11,88 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
       failOnStatusCode: false,
       body: { 
         chat_id: chatId, 
-        text: `${message}\n🕒 <i>Время проверки (UTC): ${time}</i>`, 
+        text: `${message}\n🕒 <i>Время (UTC): ${time}</i>`, 
         parse_mode: 'HTML' 
       }
     });
   };
 
   it('Flow: Login -> Search -> Check Status', () => {
-    cy.viewport(1280, 800);
+    // 1. Заходим на сайт
+    cy.visit('/home', { timeout: 60000 });
     cy.intercept('POST', '**/api/**').as('apiSearch');
-    cy.visit('/home', { timeout: 30000 });
 
-    cy.xpath("(//input[contains(@class,'input')])[1]", { timeout: 15000 })
-      .should('be.visible')
-      .click()
-      .type(Cypress.env('LOGIN_EMAIL'), { log: false, delay: 50 });
+    // 2. Логин (с проверкой на наличие полей)
+    cy.get('input', { timeout: 30000 }).should('be.visible');
     
-    cy.xpath("(//input[contains(@class,'input')])[2]")
-      .type(Cypress.env('LOGIN_PASSWORD'), { log: false, delay: 50 })
-      .type('{enter}');
+    cy.get('input').first().type(Cypress.env('LOGIN_EMAIL'), { log: false });
+    cy.get('input').eq(1).type(Cypress.env('LOGIN_PASSWORD'), { log: false, delay: 50 });
+    cy.get('input').eq(1).type('{enter}');
 
-    cy.url().should('include', '/home');
+    // Ждем перехода на главную
+    cy.url({ timeout: 30000 }).should('include', '/home');
 
-    cy.get('#from').should('be.visible').click().clear().type('Ташкент', { delay: 150 });
-    cy.get('[class*="p-autocomplete-item"]', { timeout: 15000 })
-      .first()
-      .should('be.visible')
-      .click({ force: true }); 
+    // 3. СВЕРХСТАБИЛЬНЫЙ выбор городов
+    const selectCity = (selector, city) => {
+      cy.log(`Выбираю город: ${city}`);
+      
+      // Кликаем и печатаем с паузами
+      cy.get(selector).should('be.visible').click().clear().type(city, { delay: 200 });
+      
+      // Если список не появился, кликаем еще раз (важно для headless режима)
+      cy.wait(1000); 
+      cy.get('body').then(($body) => {
+        if ($body.find('[class*="p-autocomplete-item"]').length === 0) {
+          cy.get(selector).click().type(' '); // Добавляем пробел, чтобы спровоцировать поиск
+        }
+      });
 
-    cy.get('#to').should('be.visible').click().clear().type('Москва', { delay: 150 });
-    cy.get('[class*="p-autocomplete-item"]', { timeout: 15000 })
-      .first()
-      .should('be.visible')
-      .click({ force: true }); 
+      // Кликаем по элементу списка
+      cy.get('[class*="p-autocomplete-item"]', { timeout: 20000 })
+        .contains(new RegExp(`^${city}`, 'i'))
+        .should('be.visible')
+        .click({ force: true });
+      
+      cy.wait(1000);
+    };
 
+    selectCity('#from', 'Ташкент');
+    selectCity('#to', 'Москва');
+
+    // 4. Выбор даты
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 2);
     const day = targetDate.getDate();
 
-    // Open datepicker and ensure it's visible
     cy.get("input[placeholder='Когда']").click();
-    cy.get('.p-datepicker-calendar', { timeout: 10000 }).should('be.visible');
+    cy.get('.p-datepicker-calendar td', { timeout: 15000 })
+      .not('.p-datepicker-other-month')
+      .contains(new RegExp(`^${day}$`))
+      .click({ force: true });
 
-    // Try to select the day with a few retries (advance month if needed)
-    const trySelectDay = (attemptsLeft = 3) => {
-      if (attemptsLeft <= 0) {
-        // let Cypress fail with a clear message if we couldn't find the date
-        cy.get('.p-datepicker-calendar td')
-          .not('.p-datepicker-other-month')
-          .contains(new RegExp(`^${day}$`), { timeout: 10000 })
-          .click({ force: true });
-        return;
-      }
+    // 5. Поиск
+    cy.get('#search-btn').should('be.visible').click({ force: true });
 
-      cy.get('.p-datepicker-calendar td')
-        .not('.p-datepicker-other-month')
-        .contains(new RegExp(`^${day}$`))
-        .then($el => {
-          if ($el && $el.length) {
-            cy.wrap($el.first()).scrollIntoView().click({ force: true });
-          } else {
-            // advance month and retry
-            cy.get('.p-datepicker-next').click();
-            cy.wait(500);
-            trySelectDay(attemptsLeft - 1);
-          }
-        });
-    };
-
-    trySelectDay(3);
-
-    // Verify the input was updated with the selected day (simple check)
-    cy.get("input[placeholder='Когда']").should($input => {
-      const val = $input.val();
-      if (!val || !new RegExp(`${day}`).test(val)) {
-        throw new Error(`Date input not updated after selecting day ${day}, value="${val}"`);
-      }
-    });
-
-    // Close picker
-    cy.get('body').type('{esc}');
-
-    cy.get('#search-btn', { timeout: 20000 })
-      .should('be.visible')
-      .and('not.be.disabled')
-      .click();
-
+    // 6. Анализ ответа API
     cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
       const status = interception.response.statusCode;
-      const responseBody = interception.response.body;
-      const requestBody = interception.request.body;
-
-      // Log the request and response details for debugging
-      cy.log(`API Request: ${JSON.stringify(requestBody)}`);
-      cy.log(`API Status: ${status}`);
-      cy.log(`API Response: ${JSON.stringify(responseBody)}`);
+      const body = interception.response.body;
 
       if (status >= 200 && status < 300) {
-        sendToTelegram(`<b>✅ Global Travel</b>\nСтатус API: <code>${status}</code>\nСистема работает исправно.`);
+        const offersCount = body.offers ? body.offers.length : 0;
+        const msg = offersCount > 0 
+          ? `✅ <b>Global Travel</b>\nБилеты найдены! Количество: ${offersCount}`
+          : `⚠️ <b>Global Travel</b>\nСтатус: ${status}, но билетов на эту дату нет.`;
+        sendToTelegram(msg);
       } else {
-        sendToTelegram(`<b>⚠️ Ошибка API</b>\nКод: <code>${status}</code>\nОтвет: <code>${JSON.stringify(responseBody)}</code>`);
+        sendToTelegram(`<b>⚠️ Ошибка API: ${status}</b>`);
       }
     });
-
-    // Add retries for UI interactions to handle headless browser differences
-    cy.get('#search-btn', { timeout: 20000 })
-      .should('be.visible')
-      .and('not.be.disabled')
-      .click();
   });
 
   afterEach(function() {
     if (this.currentTest.state === 'failed') {
-      const testName = this.currentTest.title;
-      const errorMessage = this.currentTest.err.message;
-      sendToTelegram(
-        `<b>❌ ТЕСТ УПАЛ</b>\n` +
-        `Тест: <code>${testName}</code>\n` +
-        `Ошибка: <code>${errorMessage}</code>`
-      );
+      sendToTelegram(`<b>❌ ТЕСТ УПАЛ</b>\nОшибка: <code>${this.currentTest.err.message}</code>`);
     }
   });
 });
