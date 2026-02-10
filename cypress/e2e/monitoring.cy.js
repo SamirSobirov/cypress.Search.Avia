@@ -48,18 +48,48 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 2);
     const day = targetDate.getDate();
-    
-    cy.get("input[placeholder='Когда']").click();
-    
-    if (day < new Date().getDate()) {
-       cy.get('.p-datepicker-next').click();
-    }
 
-    cy.get('.p-datepicker-calendar td')
-      .not('.p-datepicker_other-month')
-      .contains(new RegExp(`^${day}$`))
-      .click({ force: true });
-    
+    // Open datepicker and ensure it's visible
+    cy.get("input[placeholder='Когда']").click();
+    cy.get('.p-datepicker-calendar', { timeout: 10000 }).should('be.visible');
+
+    // Try to select the day with a few retries (advance month if needed)
+    const trySelectDay = (attemptsLeft = 3) => {
+      if (attemptsLeft <= 0) {
+        // let Cypress fail with a clear message if we couldn't find the date
+        cy.get('.p-datepicker-calendar td')
+          .not('.p-datepicker-other-month')
+          .contains(new RegExp(`^${day}$`), { timeout: 10000 })
+          .click({ force: true });
+        return;
+      }
+
+      cy.get('.p-datepicker-calendar td')
+        .not('.p-datepicker-other-month')
+        .contains(new RegExp(`^${day}$`))
+        .then($el => {
+          if ($el && $el.length) {
+            cy.wrap($el.first()).scrollIntoView().click({ force: true });
+          } else {
+            // advance month and retry
+            cy.get('.p-datepicker-next').click();
+            cy.wait(500);
+            trySelectDay(attemptsLeft - 1);
+          }
+        });
+    };
+
+    trySelectDay(3);
+
+    // Verify the input was updated with the selected day (simple check)
+    cy.get("input[placeholder='Когда']").should($input => {
+      const val = $input.val();
+      if (!val || !new RegExp(`${day}`).test(val)) {
+        throw new Error(`Date input not updated after selecting day ${day}, value="${val}"`);
+      }
+    });
+
+    // Close picker
     cy.get('body').type('{esc}');
 
     cy.get('#search-btn', { timeout: 10000 })
