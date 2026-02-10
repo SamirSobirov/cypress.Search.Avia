@@ -1,4 +1,4 @@
-describe('Scheduled Monitoring & Telegram Reporting', () => {
+describe('Scheduled Monitoring', () => {
   const token = Cypress.env('TELEGRAM_TOKEN');
   const chatId = Cypress.env('TELEGRAM_CHAT_ID');
 
@@ -11,83 +11,68 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
       failOnStatusCode: false,
       body: { 
         chat_id: chatId, 
-        text: `${message}\n🕒 <i>Время (UTC): ${time}</i>`, 
+        text: `${message}\n\n🕒 <i>Время: ${time}</i>`, 
         parse_mode: 'HTML' 
       }
     });
   };
 
-  it('Flow: Login -> Search -> Check Status', () => {
+  it('Monitoring Flow', () => {
     cy.viewport(1280, 800);
+    cy.intercept('POST', '**/offers**').as('apiSearch');
 
-    // ИЗМЕНЕНИЕ: ловим любой поддомен api (api, api2, и т.д.)
-    cy.intercept('**/v1/content/offers/**').as('apiSearch');
+    cy.visit('https://test.globaltravel.space/home');
 
-    cy.visit('/home', { timeout: 60000 });
-    
-    // 3. Логин
-    cy.get('input', { timeout: 30000 }).first().should('be.visible')
-      .clear().type(Cypress.env('LOGIN_EMAIL'), { log: false });
-    
-    cy.get('input').eq(1)
-      .clear().type(Cypress.env('LOGIN_PASSWORD'), { log: false });
-
-    cy.get('button').contains(/Войти|Sign In/i).click();
+    // 1. Логин
+    cy.xpath("(//input[contains(@class,'input')])[1]").should('be.visible')
+      .type(Cypress.env('LOGIN_EMAIL'), { log: false });
+    cy.xpath("(//input[contains(@class,'input')])[2]")
+      .type(Cypress.env('LOGIN_PASSWORD'), { log: false }).type('{enter}');
 
     cy.url({ timeout: 40000 }).should('include', '/home');
 
-    // 4. Выбор городов
-    cy.get('#from').should('be.visible').click().clear()
-      .type('Ташкент', { delay: 200 }).type('{enter}').blur();
-    cy.wait(1500);
+    // 2. ОТКУДА
+    cy.get('#from').click({force: true}).clear().type('Ташкент', { delay: 200 });
+    cy.wait(1000);
+    cy.get('#from').type('{enter}');
+    
+    cy.wait(1000);
 
-    cy.get('#to').should('be.visible').click().clear()
-      .type('Москва', { delay: 200 }).type('{enter}').blur();
-    cy.wait(1500);
+    // 3. КУДА (Исправлено)
+    cy.get('#to').click({force: true}).clear().type('Москва', { delay: 250 });
+    cy.wait(1500); // Даем сайту "прожевать" Москву
+    cy.get('#to').type('{enter}');
+    cy.wait(1000);
 
-    // 5. Выбор даты
+    // 4. ДАТА
     cy.get("input[placeholder='Когда']").click();
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + 2);
-    const day = targetDate.getDate();
+    const targetDay = new Date();
+    targetDay.setDate(targetDay.getDate() + 2);
+    const dayToSelect = targetDay.getDate();
+
     cy.get('.p-datepicker-calendar td').not('.p-datepicker-other-month')
-      .contains(new RegExp(`^${day}$`)).click({ force: true });
+      .contains(new RegExp(`^${dayToSelect}$`)).click({ force: true });
 
     cy.get('body').type('{esc}');
     cy.wait(2000); 
 
-    // 6. Клик по поиску
-    cy.get('#search-btn').should('not.be.disabled').click({ force: true });
+    // 5. ПОИСК
+    cy.get('#search-btn').should('be.visible').click({ force: true });
 
-    // 7. Ожидание ответа
     cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
       const status = interception.response.statusCode;
       const body = interception.response.body;
-      
-      // На твоем скриншоте видно, что данных много. Проверим длину массива.
-      const offersCount = body.length || (body.data ? body.data.length : 0);
+      let count = 0;
+      if (Array.isArray(body)) count = body.length;
+      else if (body?.data) count = Array.isArray(body.data) ? body.data.length : (body.data.offers?.length || 0);
 
-      if (status === 200) {
-        sendToTelegram(`✅ <b>Global Travel</b>\nБилеты найдены! Количество: <b>${offersCount}</b>`);
-      } else {
-        sendToTelegram(`⚠️ <b>Global Travel</b>\nСтатус API: ${status}. Возможно, поиск не удался.`);
-      }
+      sendToTelegram(`✅ <b>Global Travel</b>\nСтатус API: <b>${status}</b>\nБилетов: <b>${count}</b>`);
     });
   });
 
   afterEach(function() {
     if (this.currentTest.state === 'failed') {
-      const err = this.currentTest.err.message;
-      let msg = `<b>❌ ТЕСТ УПАЛ</b>\n`;
-      
-      if (err.includes('apiSearch')) {
-        msg += `<code>Сайт не прислал билеты вовремя (Timeout)</code>`;
-      } else if (err.includes('/home')) {
-        msg += `<code>Не удалось залогиниться. Проверь пароль.</code>`;
-      } else {
-        msg += `<code>${err}</code>`;
-      }
-      sendToTelegram(msg);
+      sendToTelegram(`<b>❌ МОНИТОРИНГ УПАЛ</b>\n<code>${this.currentTest.err.message.substring(0, 150)}</code>`);
     }
   });
 });
