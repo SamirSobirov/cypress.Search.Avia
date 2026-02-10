@@ -18,17 +18,17 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
   };
 
   it('Flow: Login -> Search -> Check Status', () => {
-    // Устанавливаем размер окна как в обычном браузере
     cy.viewport(1280, 800);
 
-    // 1. Заходим на сайт
+    // 1. Перехватываем ЛЮБОЙ запрос к API (и GET, и POST)
+    // Убрали 'POST', чтобы ловить всё, что летит в сторону api
+    cy.intercept('**/api/**').as('apiSearch');
+
+    // 2. Заходим на сайт
     cy.visit('/home', { timeout: 60000 });
     
-    // Перехватываем API запрос, чтобы проверить результат поиска
-    cy.intercept('POST', '**/api/**').as('apiSearch');
-
-    // 2. Логин (как в твоем flow.cy.js)
-    cy.get('input').first().should('be.visible')
+    // 3. Логин
+    cy.get('input', { timeout: 30000 }).first().should('be.visible')
       .type(Cypress.env('LOGIN_EMAIL'), { log: false });
     
     cy.get('input').eq(1)
@@ -37,24 +37,13 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
 
     cy.url({ timeout: 20000 }).should('include', '/home');
 
-    // 3. Выбор городов через {enter} (самый стабильный метод)
-    cy.get('#from')
-      .should('be.visible')
-      .clear()
-      .type('Ташкент', { delay: 150 })
-      .type('{enter}');
-    
-    cy.wait(500); // Небольшая пауза между полями
+    // 4. Выбор городов (как в рабочем flow.cy.js)
+    cy.get('#from').clear().type('Ташкент', { delay: 150 }).type('{enter}');
+    cy.wait(500);
+    cy.get('#to').clear().type('Москва', { delay: 150 }).type('{enter}');
 
-    cy.get('#to')
-      .should('be.visible')
-      .clear()
-      .type('Москва', { delay: 150 })
-      .type('{enter}');
-
-    // 4. Выбор даты (через 2 дня)
+    // 5. Выбор даты (через 2 дня)
     cy.get("input[placeholder='Когда']").click();
-
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 2);
     const day = targetDate.getDate();
@@ -66,37 +55,43 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
 
     cy.get('body').type('{esc}');
 
-    // 5. Клик по поиску
+    // 6. Клик по поиску
+    // Добавили проверку, что кнопка не заблокирована
     cy.get('#search-btn')
       .should('be.visible')
+      .should('not.be.disabled')
       .click({ force: true });
 
-    // 6. Ожидание и анализ ответа API
+    // 7. Ожидание ответа
+    // Если поиск вызывает запрос, Cypress его поймает
     cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
       const status = interception.response.statusCode;
-      const responseBody = interception.response.body;
+      const body = interception.response.body;
+      
+      // Проверяем наличие офферов (учитываем возможную разную структуру body)
+      const offers = body.offers || body.data || [];
+      const count = Array.isArray(offers) ? offers.length : 0;
 
       if (status >= 200 && status < 300) {
-        const hasOffers = responseBody.offers && responseBody.offers.length > 0;
-        const count = hasOffers ? responseBody.offers.length : 0;
-        
-        const msg = hasOffers 
-          ? `✅ <b>Global Travel</b>\nСтатус: ${status}\nНайдены билеты: ${count}`
-          : `⚠️ <b>Global Travel</b>\nСтатус: ${status}\nБилетов на эту дату нет.`;
-        
+        const msg = count > 0 
+          ? `✅ <b>Global Travel</b>\nНайдено офферов: ${count}`
+          : `⚠️ <b>Global Travel</b>\nСтатус: ${status}, но билетов нет.`;
         sendToTelegram(msg);
       } else {
-        sendToTelegram(`<b>⚠️ Ошибка API</b>\nКод: <code>${status}</code>`);
+        sendToTelegram(`<b>⚠️ Ошибка сервера</b>\nСтатус: <code>${status}</code>`);
       }
     });
   });
 
   afterEach(function() {
     if (this.currentTest.state === 'failed') {
-      const errorMessage = this.currentTest.err.message;
-      sendToTelegram(
-        `<b>❌ ТЕСТ УПАЛ</b>\nОшибка: <code>${errorMessage}</code>`
-      );
+      // Если упало на cy.wait('@apiSearch'), значит запрос не ушел
+      const err = this.currentTest.err.message;
+      const cleanErr = err.includes('apiSearch') 
+        ? "Ошибка: Кнопка поиска нажата, но сайт не отправил данные (Timeout API)"
+        : err;
+        
+      sendToTelegram(`<b>❌ ТЕСТ УПАЛ</b>\n<code>${cleanErr}</code>`);
     }
   });
 });
