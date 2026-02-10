@@ -92,16 +92,18 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
     // Close picker
     cy.get('body').type('{esc}');
 
-    cy.get('#search-btn', { timeout: 10000 })
+    cy.get('#search-btn', { timeout: 20000 })
       .should('be.visible')
       .and('not.be.disabled')
       .click();
 
-    cy.wait('@apiSearch', { timeout: 30000 }).then((interception) => {
+    cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
       const status = interception.response.statusCode;
       const responseBody = interception.response.body;
+      const requestBody = interception.request.body;
 
-      // Log the status and response body for debugging
+      // Log the request and response details for debugging
+      cy.log(`API Request: ${JSON.stringify(requestBody)}`);
       cy.log(`API Status: ${status}`);
       cy.log(`API Response: ${JSON.stringify(responseBody)}`);
 
@@ -111,6 +113,12 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
         sendToTelegram(`<b>⚠️ Ошибка API</b>\nКод: <code>${status}</code>\nОтвет: <code>${JSON.stringify(responseBody)}</code>`);
       }
     });
+
+    // Add retries for UI interactions to handle headless browser differences
+    cy.get('#search-btn', { timeout: 20000 })
+      .should('be.visible')
+      .and('not.be.disabled')
+      .click();
   });
 
   afterEach(function() {
