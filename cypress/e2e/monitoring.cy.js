@@ -18,81 +18,85 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
   };
 
   it('Flow: Login -> Search -> Check Status', () => {
+    // Устанавливаем размер окна как в обычном браузере
+    cy.viewport(1280, 800);
+
     // 1. Заходим на сайт
     cy.visit('/home', { timeout: 60000 });
+    
+    // Перехватываем API запрос, чтобы проверить результат поиска
     cy.intercept('POST', '**/api/**').as('apiSearch');
 
-    // 2. Логин (с проверкой на наличие полей)
-    cy.get('input', { timeout: 30000 }).should('be.visible');
+    // 2. Логин (как в твоем flow.cy.js)
+    cy.get('input').first().should('be.visible')
+      .type(Cypress.env('LOGIN_EMAIL'), { log: false });
     
-    cy.get('input').first().type(Cypress.env('LOGIN_EMAIL'), { log: false });
-    cy.get('input').eq(1).type(Cypress.env('LOGIN_PASSWORD'), { log: false, delay: 50 });
-    cy.get('input').eq(1).type('{enter}');
+    cy.get('input').eq(1)
+      .type(Cypress.env('LOGIN_PASSWORD'), { log: false })
+      .type('{enter}');
 
-    // Ждем перехода на главную
-    cy.url({ timeout: 30000 }).should('include', '/home');
+    cy.url({ timeout: 20000 }).should('include', '/home');
 
-    // 3. СВЕРХСТАБИЛЬНЫЙ выбор городов
-    const selectCity = (selector, city) => {
-      cy.log(`Выбираю город: ${city}`);
-      
-      // Кликаем и печатаем с паузами
-      cy.get(selector).should('be.visible').click().clear().type(city, { delay: 200 });
-      
-      // Если список не появился, кликаем еще раз (важно для headless режима)
-      cy.wait(1000); 
-      cy.get('body').then(($body) => {
-        if ($body.find('[class*="p-autocomplete-item"]').length === 0) {
-          cy.get(selector).click().type(' '); // Добавляем пробел, чтобы спровоцировать поиск
-        }
-      });
+    // 3. Выбор городов через {enter} (самый стабильный метод)
+    cy.get('#from')
+      .should('be.visible')
+      .clear()
+      .type('Ташкент', { delay: 150 })
+      .type('{enter}');
+    
+    cy.wait(500); // Небольшая пауза между полями
 
-      // Кликаем по элементу списка
-      cy.get('[class*="p-autocomplete-item"]', { timeout: 20000 })
-        .contains(new RegExp(`^${city}`, 'i'))
-        .should('be.visible')
-        .click({ force: true });
-      
-      cy.wait(1000);
-    };
+    cy.get('#to')
+      .should('be.visible')
+      .clear()
+      .type('Москва', { delay: 150 })
+      .type('{enter}');
 
-    selectCity('#from', 'Ташкент');
-    selectCity('#to', 'Москва');
+    // 4. Выбор даты (через 2 дня)
+    cy.get("input[placeholder='Когда']").click();
 
-    // 4. Выбор даты
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 2);
     const day = targetDate.getDate();
 
-    cy.get("input[placeholder='Когда']").click();
-    cy.get('.p-datepicker-calendar td', { timeout: 15000 })
+    cy.get('.p-datepicker-calendar td', { timeout: 10000 })
       .not('.p-datepicker-other-month')
       .contains(new RegExp(`^${day}$`))
       .click({ force: true });
 
-    // 5. Поиск
-    cy.get('#search-btn').should('be.visible').click({ force: true });
+    cy.get('body').type('{esc}');
 
-    // 6. Анализ ответа API
+    // 5. Клик по поиску
+    cy.get('#search-btn')
+      .should('be.visible')
+      .click({ force: true });
+
+    // 6. Ожидание и анализ ответа API
     cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
       const status = interception.response.statusCode;
-      const body = interception.response.body;
+      const responseBody = interception.response.body;
 
       if (status >= 200 && status < 300) {
-        const offersCount = body.offers ? body.offers.length : 0;
-        const msg = offersCount > 0 
-          ? `✅ <b>Global Travel</b>\nБилеты найдены! Количество: ${offersCount}`
-          : `⚠️ <b>Global Travel</b>\nСтатус: ${status}, но билетов на эту дату нет.`;
+        const hasOffers = responseBody.offers && responseBody.offers.length > 0;
+        const count = hasOffers ? responseBody.offers.length : 0;
+        
+        const msg = hasOffers 
+          ? `✅ <b>Global Travel</b>\nСтатус: ${status}\nНайдены билеты: ${count}`
+          : `⚠️ <b>Global Travel</b>\nСтатус: ${status}\nБилетов на эту дату нет.`;
+        
         sendToTelegram(msg);
       } else {
-        sendToTelegram(`<b>⚠️ Ошибка API: ${status}</b>`);
+        sendToTelegram(`<b>⚠️ Ошибка API</b>\nКод: <code>${status}</code>`);
       }
     });
   });
 
   afterEach(function() {
     if (this.currentTest.state === 'failed') {
-      sendToTelegram(`<b>❌ ТЕСТ УПАЛ</b>\nОшибка: <code>${this.currentTest.err.message}</code>`);
+      const errorMessage = this.currentTest.err.message;
+      sendToTelegram(
+        `<b>❌ ТЕСТ УПАЛ</b>\nОшибка: <code>${errorMessage}</code>`
+      );
     }
   });
 });
