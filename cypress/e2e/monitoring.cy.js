@@ -109,7 +109,13 @@ describe('Scheduled Monitoring & Telegram Reporting', () => {
 
   afterEach(function() {
     if (this.currentTest.state === 'failed') {
-      sendToTelegram(`<b>❌ ТЕСТ УПАЛ</b>\nЛог: <code>${this.currentTest.err.message}</code>`);
+      const testName = this.currentTest.title;
+      const errorMessage = this.currentTest.err.message;
+      sendToTelegram(
+        `<b>❌ ТЕСТ УПАЛ</b>\n` +
+        `Тест: <code>${testName}</code>\n` +
+        `Ошибка: <code>${errorMessage}</code>`
+      );
     }
   });
 });
