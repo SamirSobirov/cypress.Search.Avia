@@ -2,7 +2,6 @@ name: Global Travel Monitoring
 
 on:
   schedule:
-    # Запуск каждые 2 часа (00:00, 02:00, 04:00 по UTC)
     - cron: '0 */2 * * *'
   workflow_dispatch:
 
@@ -22,44 +21,19 @@ jobs:
         run: npm ci
 
       - name: Run Cypress tests
-        run: |
-          npx cypress run --spec "cypress/e2e/monitoring.cy.js"
+        run: npx cypress run --spec "cypress/e2e/monitoring.cy.js"
         env:
-          CYPRESS_login_email: ${{ secrets.LOGIN_EMAIL }}
-          CYPRESS_login_password: ${{ secrets.LOGIN_PASSWORD }}
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # ВАЖНО: Добавляем префикс CYPRESS_, чтобы код увидел секреты
+          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+          CYPRESS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CYPRESS_TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-      - name: Upload Artifacts (Screenshots & Videos)
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: cypress-results
           path: |
             cypress/screenshots
             cypress/videos
-          retention-days: 7
-
-      - name: Notify Telegram on success
-        if: success()
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" \
-            -d parse_mode=HTML \
-            -d text="%F0%9F%91%8D%20Global%20Travel%3A%20Search%20OK%20-%20status%20200"
-
-      - name: Notify Telegram on failure
-        if: failure()
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          # include brief failure summary
-          TEXT="%E2%9A%A0%EF%B8%8F%20Global%20Travel%3A%20Search%20FAILED%20-%20see%20artifacts"
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" \
-            -d parse_mode=HTML \
-            -d text="$TEXT"
