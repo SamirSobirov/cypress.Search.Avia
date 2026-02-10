@@ -2,9 +2,8 @@ name: Global Travel Monitoring
 
 on:
   schedule:
-    # Запуск в 00 минут каждого часа (00:00, 01:00, 02:00 и т.д. по UTC)
-    - cron: '0 * * * *'
-  # Позволяет запустить тест вручную
+    # Запуск каждые 2 часа (00:00, 02:00, 04:00 по UTC)
+    - cron: '0 */2 * * *'
   workflow_dispatch:
 
 jobs:
@@ -14,27 +13,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cypress run
-        uses: cypress-io/github-action@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          browser: chrome
-          # Добавляем запись видео, чтобы понять, как вел себя автокомплит
-          video: true 
-        env:
-          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-          CYPRESS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          CYPRESS_TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          node-version: '20'
 
-      # --- ЭТОТ БЛОК НУЖНО ДОБАВИТЬ ---
-      # Если тест упадет, GitHub сохранит скриншот и видео. 
-      # Их можно будет скачать во вкладке Actions -> Summary
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Cypress tests
+        run: |
+          npx cypress run --spec "cypress/e2e/monitoring.cy.js"
+        env:
+          CYPRESS_login_email: ${{ secrets.LOGIN_EMAIL }}
+          CYPRESS_login_password: ${{ secrets.LOGIN_PASSWORD }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
       - name: Upload Artifacts (Screenshots & Videos)
         uses: actions/upload-artifact@v4
-        if: failure() # Выполнять только если тест упал
+        if: failure()
         with:
           name: cypress-results
           path: |
             cypress/screenshots
             cypress/videos
-          retention-days: 7 # Хранить файлы 7 дней
+          retention-days: 7
+
+      - name: Notify Telegram on success
+        if: success()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d parse_mode=HTML \
+            -d text="%F0%9F%91%8D%20Global%20Travel%3A%20Search%20OK%20-%20status%20200"
+
+      - name: Notify Telegram on failure
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          # include brief failure summary
+          TEXT="%E2%9A%A0%EF%B8%8F%20Global%20Travel%3A%20Search%20FAILED%20-%20see%20artifacts"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d parse_mode=HTML \
+            -d text="$TEXT"
