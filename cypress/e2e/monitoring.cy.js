@@ -66,7 +66,7 @@ describe('Scheduled Monitoring', () => {
       if (Array.isArray(body)) count = body.length;
       else if (body?.data) count = Array.isArray(body.data) ? body.data.length : (body.data.offers?.length || 0);
 
-      sendToTelegram(`✅ <b>Global Travel</b>\nСтатус API: <b>${status}</b>\nБилетов: <b>${count}</b>`);
+      sendToTelegram(`✅ <b>MetaTrip Search</b>\nСтатус API: <b>${status}</b>\nБилетов: <b>${count}</b>`);
     });
   });
 
