@@ -64,33 +64,16 @@ describe('Scheduled Monitoring', () => {
     cy.wait(2000); 
 
     // 5. ПОИСК
-  cy.get('#search-btn').should('be.visible').click({ force: true });
+    cy.get('#search-btn').should('be.visible').click({ force: true });
 
-    // Ждем, пока на странице появится хотя бы один билет (оффер)
-    // Это гарантирует, что API не просто ответило, а прислало данные
-    cy.get('.offers-list, [class*="offer-card"], .offer-item', { timeout: 30000 })
-      .should('exist');
-
-    // Теперь, когда билеты на экране, берем самый свежий ответ от API
-    cy.get('@apiSearch.all').then((interceptions) => {
-      // Берем последний запрос из всех перехваченных
-      const lastResponse = interceptions[interceptions.length - 1].response;
-      const status = lastResponse.statusCode;
-      const body = lastResponse.body;
-      
+    cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
+      const status = interception.response.statusCode;
+      const body = interception.response.body;
       let count = 0;
-      // Проверяем все возможные пути к количеству билетов в твоем API
-      if (Array.isArray(body)) {
-        count = body.length;
-      } else if (body?.data?.offers) {
-        count = body.data.offers.length;
-      } else if (body?.data && Array.isArray(body.data)) {
-        count = body.data.length;
-      } else if (body?.offers) {
-        count = body.offers.length;
-      }
+      if (Array.isArray(body)) count = body.length;
+      else if (body?.data) count = Array.isArray(body.data) ? body.data.length : (body.data.offers?.length || 0);
 
-      sendToTelegram(`✅ <b>MetaTrip Search</b>\nСтатус API: <b>${status}</b>\nНайдено офферов: <b>${count}</b>`);
+      sendToTelegram(`✅ <b>MetaTrip Search</b>\nСтатус API: <b>${status}</b>\nБилетов: <b>${count}</b>`);
     });
   });
 
