@@ -58,12 +58,12 @@ describe('Railway Product', () => {
     cy.wait(1000);
 
     // 6. ПОИСК 
-cy.get('button.easy-button')
+cy.get('button.easy-button[data-pc-name="button"]')
       .filter(':visible')
       .last()
+      .scrollIntoView()
       .should('be.visible')
       .click({ force: true });
-
     // 7. API ПРОВЕРКА
     cy.wait('@railSearch', { timeout: 60000 }).then((xhr) => {
       expect(xhr.response.statusCode).to.eq(200);
