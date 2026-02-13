@@ -3,7 +3,7 @@ describe('Railway Product', () => {
     cy.viewport(1280, 800);
     cy.intercept('POST', '**/railway/offers**').as('railSearch');
 
-    // 1. АВТОРИЗАЦИЯ (Твой рабочий XPath)
+    // 1. АВТОРИЗАЦИЯ 
     cy.visit('https://test.globaltravel.space/sign-in');
 
     cy.xpath("(//input[contains(@class,'input')])[1]", { timeout: 20000 })
@@ -20,19 +20,19 @@ describe('Railway Product', () => {
     // 2. ПЕРЕХОД В ЖД
     cy.visit('https://test.globaltravel.space/railway');
 
-    // 3. ОТКУДА (Ввод + Клик по подсказке)
+    // 3. ОТКУДА 
     cy.get('input[placeholder="Откуда"]', { timeout: 15000 })
       .should('be.visible')
       .click({ force: true })
       .type('Ташкент', { delay: 150 });
     
-    // Кликаем по элементу списка p-listbox-item (как на твоем скрине)
+ // 4. КУДА 
     cy.get('li.p-listbox-item', { timeout: 10000 })
       .contains('ТАШКЕНТ')
       .should('be.visible')
       .click({ force: true });
     
-    // 4. КУДА (Ввод + Клик по подсказке)
+   
     cy.get('input[placeholder="Куда"]')
       .should('be.visible')
       .click({ force: true })
@@ -53,10 +53,13 @@ describe('Railway Product', () => {
       .contains(new RegExp(`^${day}$`))
       .click({ force: true });
 
-    cy.get('body').type('{esc}');
+  cy.get('body').type('{esc}');
+    cy.wait(1000);
 
-    // 6. ПОИСК (Используем класс easy-button со скриншота)
-cy.get('button.easy-button').filter(':visible').last()
+    // 6. ПОИСК 
+cy.get('button.easy-button')
+      .filter(':visible')
+      .last()
       .should('be.visible')
       .click({ force: true });
 
