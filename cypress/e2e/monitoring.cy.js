@@ -9,7 +9,11 @@ describe('Scheduled Monitoring', () => {
     const time = new Date().toLocaleString('ru-RU', { 
       hour: '2-digit', 
       minute: '2-digit', 
+<<<<<<< HEAD
       timeZone: 'Asia/Tashkent' // Принудительно Узб время
+=======
+      timeZone: 'Asia/Tashkent' 
+>>>>>>> 66a75e5 (fixe)
     });
 
     cy.request({
@@ -45,9 +49,9 @@ describe('Scheduled Monitoring', () => {
     
     cy.wait(1000);
 
-    // 3. КУДА (Исправлено)
+    // 3. КУДА
     cy.get('#to').click({force: true}).clear().type('Москва', { delay: 250 });
-    cy.wait(1500); // Даем сайту "прожевать" Москву
+    cy.wait(1500); 
     cy.get('#to').type('{enter}');
     cy.wait(1000);
 
