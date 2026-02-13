@@ -2,8 +2,8 @@ name: Global Travel Monitoring
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
-  workflow_dispatch:
+    - cron: '0 */2 * * *' # Запуск каждые 2 часа
+  workflow_dispatch:      # Возможность запустить вручную
 
 jobs:
   cypress-run:
@@ -18,12 +18,14 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm install cypress-xpath # Гарантируем наличие xpath для логина
 
       - name: Run Cypress tests
-        run: npx cypress run --spec "cypress/e2e/monitoring.cy.js"
+        # Путь изменен на папку monitoring, чтобы найти все 7 тестов
+        run: npx cypress run --spec "cypress/e2e/monitoring/*.cy.js"
         env:
-          # ВАЖНО: Добавляем префикс CYPRESS_, чтобы код увидел секреты
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
           CYPRESS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
