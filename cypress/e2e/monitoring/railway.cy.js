@@ -20,29 +20,30 @@ describe('Railway Product', () => {
     // 2. ПЕРЕХОД В ЖД
     cy.visit('https://test.globaltravel.space/railway');
 
-    // 3. ОТКУДА 
+ // 3. ОТКУДА 
     cy.get('input[placeholder="Откуда"]', { timeout: 15000 })
       .should('be.visible')
       .click({ force: true })
       .type('Ташкент', { delay: 150 });
     
- // 4. КУДА 
+    // КЛИК ПО ПОДСКАЗКЕ ДЛЯ "ОТКУДА" (Перенеси сюда)
     cy.get('li.p-listbox-item', { timeout: 10000 })
       .contains('ТАШКЕНТ')
       .should('be.visible')
       .click({ force: true });
     
-   
+    // 4. КУДА 
     cy.get('input[placeholder="Куда"]')
       .should('be.visible')
       .click({ force: true })
       .type('Самарканд', { delay: 150 });
 
+    // КЛИК ПО ПОДСКАЗКЕ ДЛЯ "КУДА"
     cy.get('li.p-listbox-item', { timeout: 10000 })
       .contains('САМАРКАНД')
       .should('be.visible')
       .click({ force: true });
-
+      
     // 5. ДАТА
     cy.get("input[placeholder='Когда']").click();
     const targetDate = new Date();
