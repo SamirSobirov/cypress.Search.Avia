@@ -58,11 +58,11 @@ describe('Railway Product', () => {
     cy.wait(1000);
 
     // 6. ПОИСК 
-cy.get('button.easy-button[data-pc-name="button"]')
-      .filter(':visible')
-      .last()
-      .scrollIntoView()
-      .should('be.visible')
+cy.get('button.easy-button')
+      .should('have.length.at.least', 1) 
+      .filter(':visible') // Игнорируем скрытые мобильные кнопки
+      .last()             // Берем последнюю (обычно это Поиск)
+      .should('not.be.disabled') // Ждем, пока она станет активной
       .click({ force: true });
     // 7. API ПРОВЕРКА
     cy.wait('@railSearch', { timeout: 60000 }).then((xhr) => {
