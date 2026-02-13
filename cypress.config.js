@@ -1,18 +1,31 @@
 const { defineConfig } = require("cypress");
 
 module.exports = defineConfig({
+  // Выносим безопасность в корень для надежности
+  chromeWebSecurity: false,
+  
   e2e: {
-    // Отключаем автоматический перезапуск при сохранении кода
+    baseUrl: 'https://test.globaltravel.space',
     watchForFileChanges: false,
-    
-    // Базовый URL, чтобы в тестах писать просто cy.visit('/home')
-    baseUrl: 'https://test.globaltravel.space', 
-    
     viewportWidth: 1280,
-    viewportHeight: 720,
+    viewportHeight: 800,
+
+    defaultCommandTimeout: 10000,
+    requestTimeout: 15000,
+    video: false,
+    screenshotOnRunFailure: true,
 
     setupNodeEvents(on, config) {
-      // сюда можно добавлять плагины в будущем
+      // Это событие помогает, если сайт блокирует автоматизацию
+      on('before:browser:launch', (browser = {}, launchOptions) => {
+        if (browser.family === 'chromium' && browser.name !== 'electron') {
+          launchOptions.args.push('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        }
+        return launchOptions;
+      });
+
+      // Важно: возвращаем config, чтобы переменные из cypress.env.json подтянулись
+      return config;
     },
   },
 });

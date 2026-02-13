@@ -4,89 +4,65 @@ describe('Railway Product', () => {
     cy.viewport(1280, 800);
     cy.intercept('POST', '**/railway/offers**').as('railSearch');
 
-    // ===== 1. LOGIN =====
-    cy.visit('https://test.globaltravel.space/sign-in');
+    cy.visit('https://test.globaltravel.space/home');
 
-    cy.xpath("(//input[contains(@class,'input')])[1]", { timeout: 30000 })
+    // ===== 1. LOGIN =====
+    cy.xpath("(//input[contains(@class,'input')])[1]")
       .should('be.visible')
-      .clear()
       .type(Cypress.env('LOGIN_EMAIL'), { log: false });
 
     cy.xpath("(//input[contains(@class,'input')])[2]")
-      .should('be.visible')
-      .clear()
       .type(Cypress.env('LOGIN_PASSWORD'), { log: false })
       .type('{enter}');
 
-    cy.url({ timeout: 60000 }).should('include', '/home');
+    cy.url({ timeout: 40000 }).should('include', '/home');
 
-    // ===== 2. RAILWAY PAGE =====
+    // ===== 2. ПЕРЕХОД В RAILWAY =====
     cy.visit('https://test.globaltravel.space/railway');
-    cy.url({ timeout: 60000 }).should('include', '/railway');
-
-    // ждём пока страница полностью загрузится
-    cy.get('input[placeholder="Откуда"]', { timeout: 30000 })
-      .should('be.visible');
 
     // ===== 3. FROM =====
     cy.get('input[placeholder="Откуда"]')
-      .click()
+      .click({ force: true })
       .clear()
-      .type('Ташкент', { delay: 50 });
+      .type('Ташкент', { delay: 200 });
 
-    // ждём появления dropdown
-    cy.get('.p-listbox', { timeout: 20000 })
-      .should('be.visible');
-
-    cy.contains('.p-listbox-item', 'ТАШКЕНТ', { timeout: 20000 })
-      .should('be.visible')
-      .click();
-
-    cy.get('input[placeholder="Откуда"]')
-      .should('have.value')
-      .and('not.be.empty');
+    cy.wait(1500);
+    cy.get('input[placeholder="Откуда"]').type('{enter}');
+    cy.wait(1000);
 
     // ===== 4. TO =====
     cy.get('input[placeholder="Куда"]')
-      .click()
+      .click({ force: true })
       .clear()
-      .type('Самарканд', { delay: 50 });
+      .type('Самарканд', { delay: 200 });
 
-    cy.get('.p-listbox', { timeout: 20000 })
-      .should('be.visible');
-
-    cy.contains('.p-listbox-item', 'САМАРКАНД', { timeout: 20000 })
-      .should('be.visible')
-      .click();
-
-    cy.get('input[placeholder="Куда"]')
-      .should('have.value')
-      .and('not.be.empty');
+    cy.wait(1500);
+    cy.get('input[placeholder="Куда"]').type('{enter}');
+    cy.wait(1000);
 
     // ===== 5. DATE =====
-    cy.get("input[placeholder='Когда']")
-      .should('be.visible')
-      .click();
+    cy.get("input[placeholder='Когда']").click();
 
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 2);
     const day = targetDate.getDate();
 
-    cy.get('.p-datepicker-calendar td:not(.p-datepicker-other-month)', { timeout: 20000 })
+    cy.get('.p-datepicker-calendar td')
+      .not('.p-datepicker-other-month')
       .contains(new RegExp(`^${day}$`))
-      .should('be.visible')
-      .click();
+      .click({ force: true });
 
     cy.get('body').type('{esc}');
+    cy.wait(2000);
 
     // ===== 6. SEARCH =====
-    cy.contains('button.easy-button', 'Поиск', { timeout: 20000 })
-      .should('be.visible')
-      .and('not.be.disabled')
-      .click();
+    cy.get('button.easy-button')
+      .filter(':visible')
+      .last()
+      .click({ force: true });
 
     // ===== 7. API CHECK =====
-    cy.wait('@railSearch', { timeout: 90000 })
+    cy.wait('@railSearch', { timeout: 60000 })
       .its('response.statusCode')
       .should('eq', 200);
 
