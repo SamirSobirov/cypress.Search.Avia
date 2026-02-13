@@ -43,7 +43,7 @@ describe('Railway Product', () => {
       .contains('САМАРКАНД')
       .should('be.visible')
       .click({ force: true });
-      
+
     // 5. ДАТА
     cy.get("input[placeholder='Когда']").click();
     const targetDate = new Date();
@@ -70,3 +70,5 @@ cy.get('button.easy-button')
     });
   });
 });
+
+// force update
