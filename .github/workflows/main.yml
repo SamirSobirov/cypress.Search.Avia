@@ -15,18 +15,19 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          spec: cypress/e2e/**
+          spec: cypress/e2e/avia.cy.js
         env:
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         continue-on-error: true
 
-      # ЭТОТ ШАГ ОБЯЗАТЕЛЕН, ЧТОБЫ ПЕРЕМЕННАЯ ЗАРАБОТАЛА
       - name: Read Offers Count
         if: always()
         run: |
           if [ -f offers_count.txt ]; then
-            echo "OFFERS_COUNT=$(cat offers_count.txt)" >> $GITHUB_ENV
+            # Читаем файл, убираем лишние пробелы и записываем в ENV
+            COUNT=$(cat offers_count.txt | tr -d '[:space:]')
+            echo "OFFERS_COUNT=$COUNT" >> $GITHUB_ENV
           else
             echo "OFFERS_COUNT=0" >> $GITHUB_ENV
           fi
@@ -36,11 +37,13 @@ jobs:
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }} 
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
           message: |
             🔔 **Result Avia Search**
             
-            Status: ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
-            Offers Found: ${{ env.OFFERS_COUNT }}
-            Repository: ${{ github.repository }}
-        
+            **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
+            **Offers Found:** ${{ env.OFFERS_COUNT }}
+            **Repository:** ${{ github.repository }}
+            
+            🔗 [Открыть логи](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

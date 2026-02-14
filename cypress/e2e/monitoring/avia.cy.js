@@ -43,17 +43,19 @@ describe('Avia Product', () => {
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
-  // 6. ПРОВЕРКА РЕЗУЛЬТАТА (API)
+// 6. ПРОВЕРКА РЕЗУЛЬТАТА (API)
     cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
       expect(interception.response.statusCode).to.eq(200);
 
-      // Извлекаем количество билетов. 
-      // Если структура ответа: { offers: [...] }, используем .length
-      // Если структура другая, подправь путь к массиву.
-      const offers = interception.response.body.offers || [];
-      const count = offers.length;
+      // Печатаем тело ответа в консоль Cypress (поможет при отладке)
+      cy.log('API Response:', JSON.stringify(interception.response.body));
 
-      // Создаем файл, который прочитает GitHub Actions
+      // Пробуем разные варианты структуры ответа (offers или data или сам массив)
+      const body = interception.response.body;
+      const offersList = body.offers || body.data || (Array.isArray(body) ? body : []);
+      const count = offersList.length;
+
+      // Создаем файл для GitHub Actions
       cy.writeFile('offers_count.txt', count.toString());
     });
   });
