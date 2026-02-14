@@ -33,4 +33,3 @@ jobs:
             Статус: ${{ job.status == 'success' && '✅ Пройдено' || '❌ Ошибка' }}
             Репозиторий: ${{ github.repository }}
             
-            🔗 Детали запуска: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
