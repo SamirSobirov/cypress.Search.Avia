@@ -15,10 +15,8 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          # Здесь указываются только параметры самого экшена
           spec: cypress/e2e/**
         env:
-          # env должен быть на уровне with
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         continue-on-error: true
@@ -27,7 +25,7 @@ jobs:
         if: always()
         uses: appleboy/telegram-action@master
         with:
-          to: ${{ secrets.TELEGRAM_TO }}
+          to: ${{ secrets.TELEGRAM_CHAT_ID }} # Исправлено под ваш скриншот
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
             🔔 **Результаты автотестов**
