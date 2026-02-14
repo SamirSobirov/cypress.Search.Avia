@@ -30,6 +30,6 @@ jobs:
           message: |
             🔔 Результаты автотеста поисковика
             
-            Статус: ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
-            Репозиторий: ${{ github.repository }}
+            Status: ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
+            Repository: ${{ github.repository }}
             
