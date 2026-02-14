@@ -21,25 +21,26 @@ describe('Railway Product', () => {
     // 2. ПЕРЕХОД В ЖД
     cy.visit('https://test.globaltravel.space/railway');
 
-    // 3. ОТКУДА 
-    cy.get('input[placeholder="Откуда"]', { timeout: 20000 })
+ // ===== 3. ОТКУДА =====
+    cy.get('input[placeholder="Откуда"]', { timeout: 15000 })
       .should('be.visible')
       .click({ force: true })
-      .type('Ташкент', { delay: 150 });
-    
-    // Ждем появления элемента списка. 
-    // Используем matchCase: false, чтобы не зависеть от регистра (ТАШКЕНТ/Ташкент)
-    cy.contains('li.p-listbox-item', /ТАШКЕНТ/i, { timeout: 15000 })
+      .type('Ташкент', { delay: 200 }); // Увеличили задержку печати
+
+    // Вместо простого клика ждем, пока в DOM появится нужный пункт
+    cy.get('li.p-listbox-item', { timeout: 15000 })
+      .contains(/ТАШКЕНТ/i) // /i делает поиск нечувствительным к регистру
       .should('be.visible')
       .click({ force: true });
-    
-    // 4. КУДА 
+
+    // ===== 4. КУДА =====
     cy.get('input[placeholder="Куда"]')
       .should('be.visible')
       .click({ force: true })
-      .type('Самарканд', { delay: 150 });
+      .type('Самарканд', { delay: 200 });
 
-    cy.contains('li.p-listbox-item', /САМАРКАНД/i, { timeout: 15000 })
+    cy.get('li.p-listbox-item', { timeout: 15000 })
+      .contains(/САМАРКАНД/i)
       .should('be.visible')
       .click({ force: true });
 
