@@ -43,9 +43,18 @@ describe('Avia Product', () => {
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
-    // 6. ПРОВЕРКА РЕЗУЛЬТАТА (API)
+  // 6. ПРОВЕРКА РЕЗУЛЬТАТА (API)
     cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
       expect(interception.response.statusCode).to.eq(200);
+
+      // Извлекаем количество билетов. 
+      // Если структура ответа: { offers: [...] }, используем .length
+      // Если структура другая, подправь путь к массиву.
+      const offers = interception.response.body.offers || [];
+      const count = offers.length;
+
+      // Создаем файл, который прочитает GitHub Actions
+      cy.writeFile('offers_count.txt', count.toString());
     });
   });
 });

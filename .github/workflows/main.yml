@@ -21,6 +21,16 @@ jobs:
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         continue-on-error: true
 
+      # ЭТОТ ШАГ ОБЯЗАТЕЛЕН, ЧТОБЫ ПЕРЕМЕННАЯ ЗАРАБОТАЛА
+      - name: Read Offers Count
+        if: always()
+        run: |
+          if [ -f offers_count.txt ]; then
+            echo "OFFERS_COUNT=$(cat offers_count.txt)" >> $GITHUB_ENV
+          else
+            echo "OFFERS_COUNT=0" >> $GITHUB_ENV
+          fi
+
       - name: Send Telegram Notification
         if: always()
         uses: appleboy/telegram-action@master
@@ -28,8 +38,9 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           message: |
-            🔔 Result Avia Search
+            🔔 **Result Avia Search**
             
             Status: ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
+            Offers Found: ${{ env.OFFERS_COUNT }}
             Repository: ${{ github.repository }}
-            
+        
