@@ -46,4 +46,3 @@ jobs:
             **Offers Found:** ${{ env.OFFERS_COUNT }}
             **Repository:** ${{ github.repository }}
             
-            🔗 [Открыть логи](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
