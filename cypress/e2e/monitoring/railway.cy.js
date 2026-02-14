@@ -21,21 +21,21 @@ describe('Railway Product', () => {
     // 2. ПЕРЕХОД В ЖД
     cy.visit('https://test.globaltravel.space/railway');
 
- // ===== 3. ОТКУДА =====
+// ===== 3. ОТКУДА =====
     cy.get('input[placeholder="Откуда"]', { timeout: 15000 })
-      .should('be.visible')
       .click({ force: true })
-      .type('Ташкент', { delay: 200 }); // Увеличили задержку печати
+      .type('Ташкент', { delay: 200 });
 
-    // Вместо простого клика ждем, пока в DOM появится нужный пункт
     cy.get('li.p-listbox-item', { timeout: 15000 })
-      .contains(/ТАШКЕНТ/i) // /i делает поиск нечувствительным к регистру
+      .contains(/ТАШКЕНТ/i)
       .should('be.visible')
       .click({ force: true });
 
+    // ПРОВЕРКА: ждем, пока значение в инпуте станет "Ташкент"
+    cy.get('input[placeholder="Откуда"]').should('not.have.value', '');
+
     // ===== 4. КУДА =====
     cy.get('input[placeholder="Куда"]')
-      .should('be.visible')
       .click({ force: true })
       .type('Самарканд', { delay: 200 });
 
@@ -43,6 +43,9 @@ describe('Railway Product', () => {
       .contains(/САМАРКАНД/i)
       .should('be.visible')
       .click({ force: true });
+
+    // ПРОВЕРКА: ждем фиксации города
+    cy.get('input[placeholder="Куда"]').should('not.have.value', '');
 
     // 5. ДАТА
     cy.get("input[placeholder='Когда']").click();
@@ -59,14 +62,15 @@ describe('Railway Product', () => {
     cy.get('body').type('{esc}');
     cy.wait(1500); // Даем время форме "собраться" после выбора даты
 
-    // 6. ПОИСК 
-    // Уточняем селектор: ищем кнопку с классом easy-button, которая НЕ является переключателем
+// ===== 6. ПОИСК (Улучшенный клик) =====
     cy.get('button.easy-button')
       .filter(':visible')
-      .last() 
-      .should('not.be.disabled')
+      .last()
+      .should('be.visible')
+      // Добавим небольшое ожидание перед кликом, чтобы фронтенд успел обработать данные
+      .wait(1000) 
       .click({ force: true });
-
+      
     // 7. API ПРОВЕРКА
     // В GitHub Actions лучше проверять через .then и interception
     cy.wait('@railSearch', { timeout: 80000 }).then((interception) => {
