@@ -1,7 +1,6 @@
 const { defineConfig } = require("cypress");
 
 module.exports = defineConfig({
-  // Выносим безопасность в корень для надежности
   chromeWebSecurity: false,
   
   e2e: {
@@ -16,15 +15,12 @@ module.exports = defineConfig({
     screenshotOnRunFailure: true,
 
     setupNodeEvents(on, config) {
-      // Это событие помогает, если сайт блокирует автоматизацию
       on('before:browser:launch', (browser = {}, launchOptions) => {
         if (browser.family === 'chromium' && browser.name !== 'electron') {
           launchOptions.args.push('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         }
         return launchOptions;
       });
-
-      // Важно: возвращаем config, чтобы переменные из cypress.env.json подтянулись
       return config;
     },
   },
