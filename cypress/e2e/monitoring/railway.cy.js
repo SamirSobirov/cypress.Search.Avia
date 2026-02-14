@@ -1,6 +1,7 @@
 describe('Railway Product', () => {
   it('Search Flow', () => {
     cy.viewport(1280, 800);
+    // 0. Интерцепт ставим в самом начале
     cy.intercept('POST', '**/railway/offers**').as('railSearch');
 
     // 1. АВТОРИЗАЦИЯ 
@@ -20,15 +21,15 @@ describe('Railway Product', () => {
     // 2. ПЕРЕХОД В ЖД
     cy.visit('https://test.globaltravel.space/railway');
 
- // 3. ОТКУДА 
-    cy.get('input[placeholder="Откуда"]', { timeout: 15000 })
+    // 3. ОТКУДА 
+    cy.get('input[placeholder="Откуда"]', { timeout: 20000 })
       .should('be.visible')
       .click({ force: true })
       .type('Ташкент', { delay: 150 });
     
-    // КЛИК ПО ПОДСКАЗКЕ ДЛЯ "ОТКУДА" (Перенеси сюда)
-    cy.get('li.p-listbox-item', { timeout: 10000 })
-      .contains('ТАШКЕНТ')
+    // Ждем появления элемента списка. 
+    // Используем matchCase: false, чтобы не зависеть от регистра (ТАШКЕНТ/Ташкент)
+    cy.contains('li.p-listbox-item', /ТАШКЕНТ/i, { timeout: 15000 })
       .should('be.visible')
       .click({ force: true });
     
@@ -38,9 +39,7 @@ describe('Railway Product', () => {
       .click({ force: true })
       .type('Самарканд', { delay: 150 });
 
-    // КЛИК ПО ПОДСКАЗКЕ ДЛЯ "КУДА"
-    cy.get('li.p-listbox-item', { timeout: 10000 })
-      .contains('САМАРКАНД')
+    cy.contains('li.p-listbox-item', /САМАРКАНД/i, { timeout: 15000 })
       .should('be.visible')
       .click({ force: true });
 
@@ -50,25 +49,28 @@ describe('Railway Product', () => {
     targetDate.setDate(targetDate.getDate() + 2);
     const day = targetDate.getDate();
 
+    // Ждем, пока календарь отрисуется
+    cy.get('.p-datepicker-calendar', { timeout: 10000 }).should('be.visible');
     cy.get('.p-datepicker-calendar td').not('.p-datepicker-other-month')
       .contains(new RegExp(`^${day}$`))
       .click({ force: true });
 
-  cy.get('body').type('{esc}');
-    cy.wait(1000);
+    cy.get('body').type('{esc}');
+    cy.wait(1500); // Даем время форме "собраться" после выбора даты
 
     // 6. ПОИСК 
-cy.get('button.easy-button')
-      .should('have.length.at.least', 1) 
-      .filter(':visible') // Игнорируем скрытые мобильные кнопки
-      .last()             // Берем последнюю (обычно это Поиск)
-      .should('not.be.disabled') // Ждем, пока она станет активной
+    // Уточняем селектор: ищем кнопку с классом easy-button, которая НЕ является переключателем
+    cy.get('button.easy-button')
+      .filter(':visible')
+      .last() 
+      .should('not.be.disabled')
       .click({ force: true });
+
     // 7. API ПРОВЕРКА
-    cy.wait('@railSearch', { timeout: 60000 }).then((xhr) => {
-      expect(xhr.response.statusCode).to.eq(200);
+    // В GitHub Actions лучше проверять через .then и interception
+    cy.wait('@railSearch', { timeout: 80000 }).then((interception) => {
+      assert.isNotNull(interception.response, 'API did not respond');
+      expect(interception.response.statusCode).to.eq(200);
     });
   });
 });
-
-// force update
