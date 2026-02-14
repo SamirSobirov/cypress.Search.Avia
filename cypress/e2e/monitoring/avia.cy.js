@@ -5,7 +5,7 @@ describe('Avia Product', () => {
 
     cy.visit('https://test.globaltravel.space/home');
 
-    // 1. ЛОГИН (ваш XPath)
+    // 1. ЛОГИН 
     cy.xpath("(//input[contains(@class,'input')])[1]").should('be.visible')
       .type(Cypress.env('LOGIN_EMAIL'), { log: false });
     cy.xpath("(//input[contains(@class,'input')])[2]")
@@ -26,14 +26,13 @@ describe('Avia Product', () => {
     cy.get('#to').type('{enter}');
     cy.wait(1000);
 
-    // 4. ДАТА (Улучшенный поиск числа)
+    // 4. ДАТА 
     cy.get("input[placeholder='Когда']").click();
     
     const targetDay = new Date();
     targetDay.setDate(targetDay.getDate() + 2);
     const dayToSelect = targetDay.getDate();
 
-    // Добавляем проверку, что календарь появился, и ищем именно текст внутри ячеек
     cy.get('.p-datepicker-calendar td').not('.p-datepicker-other-month')
       .contains(new RegExp(`^${dayToSelect}$`))
       .click({ force: true });

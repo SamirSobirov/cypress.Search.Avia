@@ -1,4 +1,4 @@
-name: Auto Test Search
+name: AutoTest Search Avia
 
 on:
   schedule:
