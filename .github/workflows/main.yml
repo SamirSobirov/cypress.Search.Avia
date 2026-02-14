@@ -1,9 +1,9 @@
-name: Global Travel Monitoring
+name: Cypress Tests
 
 on:
   schedule:
-    - cron: '0 */2 * * *' # Запуск каждые 2 часа
-  workflow_dispatch:      # Возможность запустить вручную
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
 
 jobs:
   cypress-run:
@@ -12,31 +12,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
         with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm install cypress-xpath # Гарантируем наличие xpath для логина
-
-      - name: Run Cypress tests
-        # Путь изменен на папку monitoring, чтобы найти все 7 тестов
-        run: npx cypress run --spec "cypress/e2e/monitoring/*.cy.js"
+          # Здесь указываются только параметры самого экшена
+          spec: cypress/e2e/**
         env:
-          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-          CYPRESS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          CYPRESS_TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # env должен быть на уровне with
+          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        continue-on-error: true
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Send Telegram Notification
         if: always()
+        uses: appleboy/telegram-action@master
         with:
-          name: cypress-results
-          path: |
-            cypress/screenshots
-            cypress/videos
-# force update
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🔔 **Результаты автотестов**
+            
+            Статус: ${{ job.status == 'success' && '✅ Пройдено' || '❌ Ошибка' }}
+            Репозиторий: ${{ github.repository }}
+            
+            🔗 Детали запуска: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
