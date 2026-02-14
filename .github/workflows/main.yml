@@ -8,6 +8,10 @@ on:
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
+    # ДОБАВЛЯЕМ СЮДА: Объявляем переменную заранее, чтобы она была доступна везде
+    env:
+      OFFERS_COUNT: 0 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -15,7 +19,7 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          spec: cypress/e2e/avia.cy.js
+          spec: cypress/e2e/**
         env:
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
@@ -25,9 +29,8 @@ jobs:
         if: always()
         run: |
           if [ -f offers_count.txt ]; then
-            # Читаем файл, убираем лишние пробелы и записываем в ENV
-            COUNT=$(cat offers_count.txt | tr -d '[:space:]')
-            echo "OFFERS_COUNT=$COUNT" >> $GITHUB_ENV
+            # Перезаписываем значение OFFERS_COUNT в процессе выполнения
+            echo "OFFERS_COUNT=$(cat offers_count.txt)" >> $GITHUB_ENV
           else
             echo "OFFERS_COUNT=0" >> $GITHUB_ENV
           fi
@@ -37,12 +40,11 @@ jobs:
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          format: markdown
+          token: ${{ secrets.TELEGRAM_TOKEN }} 
           message: |
             🔔 **Result Avia Search**
             
-            **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
-            **Offers Found:** ${{ env.OFFERS_COUNT }}
-            **Repository:** ${{ github.repository }}
+            Status: ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
+            Offers Found: ${{ env.OFFERS_COUNT }}
+            Repository: ${{ github.repository }}
             
