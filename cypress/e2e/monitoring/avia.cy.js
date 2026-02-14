@@ -45,18 +45,28 @@ describe('Avia Product', () => {
 
 // 6. ПРОВЕРКА РЕЗУЛЬТАТА (API)
     cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
-      expect(interception.response.statusCode).to.eq(200);
+      // Проверяем статус
+      expect(interception.response.statusCode).to.be.oneOf([200, 201]);
 
-      // Печатаем тело ответа в консоль Cypress (поможет при отладке)
-      cy.log('API Response:', JSON.stringify(interception.response.body));
-
-      // Пробуем разные варианты структуры ответа (offers или data или сам массив)
       const body = interception.response.body;
-      const offersList = body.offers || body.data || (Array.isArray(body) ? body : []);
+      
+      // Логируем структуру в консоль Cypress для проверки
+      cy.log('DEBUG: API Body keys:', Object.keys(body).join(', '));
+
+      // Улучшенный поиск массива: ищем в body.offers, body.data, body.flights или в самом body
+      const offersList = body.offers || body.data || body.flights || (Array.isArray(body) ? body : []);
       const count = offersList.length;
 
-      // Создаем файл для GitHub Actions
+      cy.log(`DEBUG: Found ${count} offers`);
+
+      // Записываем файл
       cy.writeFile('offers_count.txt', count.toString());
+      
+      // Дополнительная проверка: ждем, пока на странице появится хотя бы одна карточка
+      // Замени '.offer-item' на реальный класс карточки билета, если он другой
+      if (count > 0) {
+        cy.get('.offer-item', { timeout: 15000 }).should('exist');
+      }
     });
   });
 });

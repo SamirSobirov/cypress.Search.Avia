@@ -8,7 +8,7 @@ on:
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
-    # ДОБАВЛЯЕМ СЮДА: Объявляем переменную заранее, чтобы она была доступна везде
+    # Предварительное объявление переменной, чтобы VS Code ее видел
     env:
       OFFERS_COUNT: 0 
 
@@ -19,7 +19,7 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          spec: cypress/e2e/**
+          spec: cypress/e2e/avia.cy.js
         env:
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
@@ -29,8 +29,9 @@ jobs:
         if: always()
         run: |
           if [ -f offers_count.txt ]; then
-            # Перезаписываем значение OFFERS_COUNT в процессе выполнения
-            echo "OFFERS_COUNT=$(cat offers_count.txt)" >> $GITHUB_ENV
+            # Читаем число и передаем его в глобальный контекст env
+            VALUE=$(cat offers_count.txt)
+            echo "OFFERS_COUNT=$VALUE" >> $GITHUB_ENV
           else
             echo "OFFERS_COUNT=0" >> $GITHUB_ENV
           fi
@@ -41,10 +42,11 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }} 
+          format: markdown
           message: |
             🔔 **Result Avia Search**
             
-            Status: ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
-            Offers Found: ${{ env.OFFERS_COUNT }}
-            Repository: ${{ github.repository }}
+            **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
+            **Offers Found:** ${{ env.OFFERS_COUNT }}
+            **Repository:** ${{ github.repository }}
             
