@@ -25,8 +25,8 @@ jobs:
         if: always()
         uses: appleboy/telegram-action@master
         with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }} # Исправлено под ваш скриншот
-          token: ${{ secrets.TELEGRAM_TOKEN }}
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }} 
           message: |
             🔔 Результаты автотеста поисковика
             
