@@ -3,17 +3,12 @@ name: AutoTest Search Avia
 on:
   schedule:
     - cron: '0 * * * *'
-  # Добавляем входные параметры для ручного запуска
   workflow_dispatch:
-    inputs:
-      user_chat_id:
-        description: 'ID чата пользователя, запустившего тест'
-        required: false
-        default: ''
 
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
+    # Предварительное объявление переменной, чтобы VS Code ее видел
     env:
       OFFERS_COUNT: 0 
 
@@ -34,6 +29,7 @@ jobs:
         if: always()
         run: |
           if [ -f offers_count.txt ]; then
+            # Читаем число и передаем его в глобальный контекст env
             VALUE=$(cat offers_count.txt)
             echo "OFFERS_COUNT=$VALUE" >> $GITHUB_ENV
           else
@@ -44,15 +40,13 @@ jobs:
         if: always()
         uses: appleboy/telegram-action@master
         with:
-          # Логика выбора: если передан ID из бота, шлем туда. Если нет — по умолчанию тебе.
-          to: ${{ github.event.inputs.user_chat_id || secrets.TELEGRAM_CHAT_ID }}
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ✈️ **Result Avia Search**
+            🔔 **Result Avia Search**
             
             **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
             **Offers Found:** ${{ env.OFFERS_COUNT }}
             **Repository:** ${{ github.repository }}
-            **Workflow:** ${{ github.workflow }}
-            **Run ID:** ${{ github.run_id }}
+            
