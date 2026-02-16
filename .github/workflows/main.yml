@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       user_chat_id:
-        description: 'ID чата для отправки (автоматически от бота)'
+        description: 'ID чата для личного ответа'
         required: false
         default: ''
 
@@ -43,14 +43,20 @@ jobs:
         if: always()
         uses: appleboy/telegram-action@master
         with:
-          # Исправленная логика: 
-          to: ${{ github.event.inputs.user_chat_id != '' && github.event.inputs.user_chat_id || secrets.TELEGRAM_CHAT_ID }}
+          # ПРАВИЛЬНАЯ ЛОГИКА ВЫБОРА ЧАТА:
+          # Если запуск через кнопку (workflow_dispatch) и передан ID — шлем ЛИЧНО.
+          # В остальных случаях (cron или пустой ID) — шлем в ГРУППУ (из секретов).
+          to: >-
+            ${{ (github.event.inputs.user_chat_id != '') && 
+            github.event.inputs.user_chat_id || 
+            secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ✈️ **Result Avia Search**
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Личный отчет**' || '📢 **Общий отчет (Группа)**' }}
             
+            ✈️ **Avia Search Result**
             **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
             **Offers Found:** ${{ env.OFFERS_COUNT }}
-            **Type:** ${{ github.event_name == 'workflow_dispatch' && 'Manual Check 🔘' || 'Scheduled Check ⏰' }}
-            **Repository:** ${{ github.repository }}
+            **Time:** ${{ github.event_name == 'schedule' && 'Ежечасная проверка ⏰' || 'Запуск вручную 🔘' }}
+            
