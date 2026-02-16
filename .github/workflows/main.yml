@@ -4,10 +4,9 @@ on:
   schedule:
     - cron: '0 * * * *'
   workflow_dispatch:
-    # Добавляем возможность принимать ID пользователя от бота
     inputs:
       user_chat_id:
-        description: 'ID чата для личного уведомления'
+        description: 'ID чата для отправки (автоматически от бота)'
         required: false
         default: ''
 
@@ -44,9 +43,8 @@ jobs:
         if: always()
         uses: appleboy/telegram-action@master
         with:
-          # ЛОГИКА: Если передан user_chat_id от кнопки — шлем ему. 
-          # Если запуск по расписанию (пусто) — шлем в TELEGRAM_CHAT_ID (в группу).
-          to: ${{ github.event.inputs.user_chat_id || secrets.TELEGRAM_CHAT_ID }}
+          # Исправленная логика: 
+          to: ${{ github.event.inputs.user_chat_id != '' && github.event.inputs.user_chat_id || secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
@@ -54,5 +52,5 @@ jobs:
             
             **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
             **Offers Found:** ${{ env.OFFERS_COUNT }}
+            **Type:** ${{ github.event_name == 'workflow_dispatch' && 'Manual Check 🔘' || 'Scheduled Check ⏰' }}
             **Repository:** ${{ github.repository }}
-            
