@@ -50,7 +50,7 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Отчет вручную**' || '📢 **Общий отчет (Группа)**' }}
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing' || '📢 **hourly Testing**' }}
             
             ✈️ **Avia Search Result**
             **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
