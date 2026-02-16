@@ -43,9 +43,6 @@ jobs:
         if: always()
         uses: appleboy/telegram-action@master
         with:
-          # ПРАВИЛЬНАЯ ЛОГИКА ВЫБОРА ЧАТА:
-          # Если запуск через кнопку (workflow_dispatch) и передан ID — шлем ЛИЧНО.
-          # В остальных случаях (cron или пустой ID) — шлем в ГРУППУ (из секретов).
           to: >-
             ${{ (github.event.inputs.user_chat_id != '') && 
             github.event.inputs.user_chat_id || 
@@ -53,10 +50,10 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Личный отчет**' || '📢 **Общий отчет (Группа)**' }}
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Отчет вручную**' || '📢 **Общий отчет (Группа)**' }}
             
             ✈️ **Avia Search Result**
             **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
             **Offers Found:** ${{ env.OFFERS_COUNT }}
-            **Time:** ${{ github.event_name == 'schedule' && 'Ежечасная проверка ⏰' || 'Запуск вручную 🔘' }}
+            **Time:** ${{ github.event_name == 'schedule' && 'hourly Testing ⏰' || 'Manual Testing 🔘' }}
             
