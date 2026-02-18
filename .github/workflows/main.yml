@@ -18,19 +18,23 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cypress run
-        id: cypress # Добавляем ID шагу
+        id: cypress 
         uses: cypress-io/github-action@v6
         with:
+          # Если package.json лежит в корне, оставь '.', если в папке — укажи имя папки
+          working-directory: . 
           spec: cypress/e2e/avia.cy.js
           browser: chrome
+          # Эта команда принудительно установит зависимости, если их нет в кэше
+          install-command: npm install 
         env:
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        # continue-on-error удален! Нам нужен реальный статус.
 
       - name: Read Offers Count
         if: always()
         run: |
+          # Проверяем файл в папке запуска (working-directory)
           if [ -f offers_count.txt ]; then
             echo "OFFERS_COUNT=$(cat offers_count.txt)" >> $GITHUB_ENV
           else
@@ -53,4 +57,5 @@ jobs:
             ✈️ **Avia Search Result**
             **Status:** ${{ steps.cypress.outcome == 'success' && '✅ Success' || '❌ Error (Site Down or Login Failed)' }}
             **Offers Found:** ${{ env.OFFERS_COUNT }}
-            **Time:** ${{ github.event_name == 'schedule' && 'Scheduled ⏰' || 'Manual 🔘' }}
+            **Mode:** ${{ github.event_name == 'schedule' && 'Scheduled ⏰' || 'Manual 🔘' }}
+            
