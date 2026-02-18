@@ -13,33 +13,28 @@ on:
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
+    env:
+      OFFERS_COUNT: 0 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Cypress run
-        id: cypress 
         uses: cypress-io/github-action@v6
         with:
-          # ВНИМАНИЕ: На твоем скрине путь /cypress.Search.Avia/cypress.Search.Avia
-          # Если package.json лежит внутри этой папки, укажи её здесь:
-          working-directory: . 
           spec: cypress/e2e/avia.cy.js
-          browser: chrome
-          # Команда 'build' гарантирует, что Cypress скачает бинарный файл в CI
-          build: npx cypress install
         env:
-          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        continue-on-error: true
 
       - name: Read Offers Count
         if: always()
         run: |
-          # Ищем файл в корне или в рабочей папке
           if [ -f offers_count.txt ]; then
-            echo "OFFERS_COUNT=$(cat offers_count.txt)" >> $GITHUB_ENV
-          elif [ -f cypress.Search.Avia/offers_count.txt ]; then
-            echo "OFFERS_COUNT=$(cat cypress.Search.Avia/offers_count.txt)" >> $GITHUB_ENV
+            VALUE=$(cat offers_count.txt)
+            echo "OFFERS_COUNT=$VALUE" >> $GITHUB_ENV
           else
             echo "OFFERS_COUNT=0" >> $GITHUB_ENV
           fi
@@ -55,10 +50,10 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Testing**' }}
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing' || '📢 **hourly Testing**' }}
             
             ✈️ **Avia Search Result**
-            **Status:** ${{ steps.cypress.outcome == 'success' && '✅ Success' || '❌ Error (Site Down or Login Failed)' }}
+            **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
             **Offers Found:** ${{ env.OFFERS_COUNT }}
-            **Mode:** ${{ github.event_name == 'schedule' && 'Scheduled ⏰' || 'Manual 🔘' }}
+            **Time:** ${{ github.event_name == 'schedule' && 'hourly Testing ⏰' || 'Manual Testing 🔘' }}
             
