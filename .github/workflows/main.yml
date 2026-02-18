@@ -21,12 +21,13 @@ jobs:
         id: cypress 
         uses: cypress-io/github-action@v6
         with:
-          # Если package.json лежит в корне, оставь '.', если в папке — укажи имя папки
+          # ВНИМАНИЕ: На твоем скрине путь /cypress.Search.Avia/cypress.Search.Avia
+          # Если package.json лежит внутри этой папки, укажи её здесь:
           working-directory: . 
           spec: cypress/e2e/avia.cy.js
           browser: chrome
-          # Эта команда принудительно установит зависимости, если их нет в кэше
-          install-command: npm install 
+          # Команда 'build' гарантирует, что Cypress скачает бинарный файл в CI
+          build: npx cypress install
         env:
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
@@ -34,9 +35,11 @@ jobs:
       - name: Read Offers Count
         if: always()
         run: |
-          # Проверяем файл в папке запуска (working-directory)
+          # Ищем файл в корне или в рабочей папке
           if [ -f offers_count.txt ]; then
             echo "OFFERS_COUNT=$(cat offers_count.txt)" >> $GITHUB_ENV
+          elif [ -f cypress.Search.Avia/offers_count.txt ]; then
+            echo "OFFERS_COUNT=$(cat cypress.Search.Avia/offers_count.txt)" >> $GITHUB_ENV
           else
             echo "OFFERS_COUNT=0" >> $GITHUB_ENV
           fi
