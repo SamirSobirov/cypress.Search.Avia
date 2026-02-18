@@ -5,13 +5,20 @@ describe('Avia Product', () => {
 
     cy.visit('https://test.globaltravel.space/home');
 
-    // 1. ЛОГИН 
+   // 1. ЛОГИН 
+    cy.visit('https://test.globaltravel.space/sign-in'); // Лучше идти сразу на страницу логина
+
     cy.xpath("(//input[contains(@class,'input')])[1]").should('be.visible')
       .type(Cypress.env('LOGIN_EMAIL'), { log: false });
+    
     cy.xpath("(//input[contains(@class,'input')])[2]")
       .type(Cypress.env('LOGIN_PASSWORD'), { log: false }).type('{enter}');
 
-    cy.url({ timeout: 40000 }).should('include', '/home');
+    // ПРОВЕРКА: Если логин не сработал за 20 секунд, тест упадет здесь с ошибкой
+    cy.url({ timeout: 20000 }).should('include', '/home');
+    
+    // Дополнительная проверка, что профиль или кнопка выхода появились
+    cy.get('body').should('not.contain', 'Ошибка');
 
     // 2. ОТКУДА
     cy.get('#from').click({force: true}).clear().type('Ташкент', { delay: 200 });

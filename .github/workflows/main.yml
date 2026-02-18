@@ -13,28 +13,26 @@ on:
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
-    env:
-      OFFERS_COUNT: 0 
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Cypress run
+        id: cypress # Добавляем ID шагу
         uses: cypress-io/github-action@v6
         with:
           spec: cypress/e2e/avia.cy.js
+          browser: chrome
         env:
-          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        continue-on-error: true
+          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        # continue-on-error удален! Нам нужен реальный статус.
 
       - name: Read Offers Count
         if: always()
         run: |
           if [ -f offers_count.txt ]; then
-            VALUE=$(cat offers_count.txt)
-            echo "OFFERS_COUNT=$VALUE" >> $GITHUB_ENV
+            echo "OFFERS_COUNT=$(cat offers_count.txt)" >> $GITHUB_ENV
           else
             echo "OFFERS_COUNT=0" >> $GITHUB_ENV
           fi
@@ -50,10 +48,9 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing' || '📢 **hourly Testing**' }}
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Testing**' }}
             
             ✈️ **Avia Search Result**
-            **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
+            **Status:** ${{ steps.cypress.outcome == 'success' && '✅ Success' || '❌ Error (Site Down or Login Failed)' }}
             **Offers Found:** ${{ env.OFFERS_COUNT }}
-            **Time:** ${{ github.event_name == 'schedule' && 'hourly Testing ⏰' || 'Manual Testing 🔘' }}
-            
+            **Time:** ${{ github.event_name == 'schedule' && 'Scheduled ⏰' || 'Manual 🔘' }}
