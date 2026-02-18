@@ -48,25 +48,19 @@ describe('Avia Product', () => {
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
-// 6. ПРОВЕРКА РЕЗУЛЬТАТА (Умный поиск для Авиа)
-    // Ждем появления хотя бы одной карточки с правильным классом .ticket-card
+// 6. ПРОВЕРКА РЕЗУЛЬТАТА
     cy.get('.ticket-card', { timeout: 40000 }).should('be.visible');
 
-    // Теперь, когда карточки ТОЧНО отрисовались, берем данные
-    // Мы не просто ждем API, мы считаем реальные карточки на странице
     cy.get('.ticket-card').then(($tickets) => {
       const count = $tickets.length;
-      cy.log(`Успех! Найдено реальных билетов на странице: ${count}`);
+      cy.log(` Найдено билетов: ${count}`);
 
-      // Записываем финальное число для Telegram
       cy.writeFile('offers_count.txt', count.toString());
       
-      // Дополнительно проверяем последний API запрос для логов
       cy.wait('@apiSearch').then((interception) => {
         cy.log('Последний статус API:', interception.response.statusCode);
       });
 
-      // Тест пройдет успешно, так как count > 0
       expect(count).to.be.greaterThan(0);
     });
   });
