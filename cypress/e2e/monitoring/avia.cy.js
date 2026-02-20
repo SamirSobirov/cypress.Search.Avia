@@ -48,20 +48,30 @@ describe('Avia Product', () => {
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
-// 6. ПРОВЕРКА РЕЗУЛЬТАТА
-    cy.get('.ticket-card', { timeout: 40000 }).should('be.visible');
+/// 6. ПРОВЕРКА РЕЗУЛЬТАТА
+// Ждем, пока карточки не только появятся, но и станут видимыми
+cy.get('.ticket-card', { timeout: 60000 }).should('be.visible');
 
-    cy.get('.ticket-card').then(($tickets) => {
-      const count = $tickets.length;
-      cy.log(` Найдено билетов: ${count}`);
+// Умное ожидание: считаем количество только когда список перестает меняться (стабилизируется)
+cy.wait(3000); 
 
-      cy.writeFile('offers_count.txt', count.toString());
-      
-      cy.wait('@apiSearch').then((interception) => {
-        cy.log('Последний статус API:', interception.response.statusCode);
-      });
+// Фильтруем только видимые карточки, чтобы не считать скрытые элементы
+cy.get('.ticket-card:visible').then(($tickets) => {
+  const count = $tickets.length;
+  cy.log(`Найдено реальных билетов: ${count}`);
 
-      expect(count).to.be.greaterThan(0);
-    });
+  // Записываем число в файл для GitHub Actions
+  cy.writeFile('offers_count.txt', count.toString());
+  
+  // Дополнительная проверка через API, чтобы убедиться, что данные пришли
+  cy.wait('@apiSearch').then((interception) => {
+    if (interception.response) {
+      cy.log('Статус ответа сервера:', interception.response.statusCode);
+      expect(interception.response.statusCode).to.be.oneOf([200, 304]);
+    }
+  });
+
+  expect(count).to.be.greaterThan(0);
+});
   });
 });

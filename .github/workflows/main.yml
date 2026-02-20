@@ -13,30 +13,32 @@ on:
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
-    env:
-      OFFERS_COUNT: 0 
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Cypress run
+        id: cypress
         uses: cypress-io/github-action@v6
         with:
           spec: cypress/e2e/avia.cy.js
+          browser: chrome
         env:
-          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+          # Исправлено: добавлены префиксы CYPRESS_ для доступа через Cypress.env()
+          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         continue-on-error: true
 
-      - name: Read Offers Count
+      - name: Extract Results
+        id: extract_results
         if: always()
         run: |
-          if [ -f offers_count.txt ]; then
-            VALUE=$(cat offers_count.txt)
-            echo "OFFERS_COUNT=$VALUE" >> $GITHUB_ENV
+          # Проверяем наличие файла с количеством офферов
+          if [ -f "offers_count.txt" ]; then
+            COUNT=$(cat "offers_count.txt")
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
           else
-            echo "OFFERS_COUNT=0" >> $GITHUB_ENV
+            echo "count=0" >> $GITHUB_OUTPUT
           fi
 
       - name: Send Telegram Notification
@@ -50,10 +52,9 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing' || '📢 **hourly Testing**' }}
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Testing**' }}
             
             ✈️ **Avia Search Result**
-            **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
-            **Offers Found:** ${{ env.OFFERS_COUNT }}
-            **Time:** ${{ github.event_name == 'schedule' && 'hourly Testing ⏰' || 'Manual Testing 🔘' }}
-            
+            **Status:** ${{ steps.cypress.outcome == 'success' && '✅ Success' || '❌ Error' }}
+            **Offers Found:** ${{ steps.extract_results.outputs.count }}
+            **Time:** ${{ github.event_name == 'schedule' && 'Hourly ⏰' || 'Manual 🔘' }}
