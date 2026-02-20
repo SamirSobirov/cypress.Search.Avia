@@ -49,24 +49,19 @@ describe('Avia Product', () => {
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
 // 6. ПРОВЕРКА РЕЗУЛЬТАТА
-    cy.get('.ticket-card', { timeout: 60000 }).should('be.visible');
+    cy.get('.ticket-card', { timeout: 40000 }).should('be.visible');
 
-    // Даем время всем запросам завершиться
-    cy.wait(2000); 
-
-    cy.get('.ticket-card:visible').then(($tickets) => {
+    cy.get('.ticket-card').then(($tickets) => {
       const count = $tickets.length;
+      cy.log(` Найдено билетов: ${count}`);
+
       cy.writeFile('offers_count.txt', count.toString());
       
-      // Делаем проверку API мягкой, чтобы тест не падал из-за статуса
-      cy.get('@apiSearch').then((interception) => {
-        if (interception && interception.response) {
-            cy.log('API Status:', interception.response.statusCode);
-        }
+      cy.wait('@apiSearch').then((interception) => {
+        cy.log('Последний статус API:', interception.response.statusCode);
       });
 
-      // Главное, что билеты есть на экране
-      expect(count).to.be.at.least(1);
+      expect(count).to.be.greaterThan(0);
     });
   });
 });
