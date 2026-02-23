@@ -26,7 +26,7 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          spec: cypress/e2e/avia.cy.js
+          spec: cypress/e2e/monitoring/avia.cy.js
           browser: chrome
           config: defaultCommandTimeout=60000,pageLoadTimeout=120000
         env:
