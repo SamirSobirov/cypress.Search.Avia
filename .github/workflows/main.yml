@@ -17,10 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1. ОЧИСТКА: Удаляем старые файлы перед тестом, чтобы не было ложных данных
-      - name: Clean old results
+      # 1. Подготовка: создаем файлы-заглушки, чтобы cat не выдавал ошибку
+      - name: Initialize logs
         run: |
-          rm -f api_status.txt offers_count.txt
+          echo "NONE" > api_status.txt
+          echo "EMPTY" > offers_count.txt
 
       - name: Cypress run
         uses: cypress-io/github-action@v6
@@ -32,29 +33,39 @@ jobs:
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         continue-on-error: true
 
-      # 2. ПАРСИНГ: Используем GITHUB_OUTPUT вместо GITHUB_ENV
+      # 2. ПАРСИНГ: Очищаем данные от лишних пробелов и символов
       - name: Parse Diagnostic Data
         id: parse_data
         if: always()
         run: |
-          API_STATUS=$(cat api_status.txt 2>/dev/null || echo "UNKNOWN")
-          COUNT=$(cat offers_count.txt 2>/dev/null || echo "N/A")
+          # Читаем и удаляем любые пробелы/переносы
+          RAW_STATUS=$(cat api_status.txt | tr -d '[:space:]')
+          RAW_COUNT=$(cat offers_count.txt | tr -d '[:space:]')
+          
+          echo "Log: Status is [$RAW_STATUS], Count is [$RAW_COUNT]"
 
-          if [[ "$API_STATUS" -ge 400 ]]; then
-            echo "status=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_OUTPUT
+          if [[ "$RAW_STATUS" == "200" ]]; then
+            if [[ "$RAW_COUNT" =~ ^[0-9]+$ ]]; then
+              if [ "$RAW_COUNT" -gt 0 ]; then
+                echo "status=✅ Success" >> $GITHUB_OUTPUT
+                echo "count=$RAW_COUNT" >> $GITHUB_OUTPUT
+              else
+                echo "status=⚪ No Tickets" >> $GITHUB_OUTPUT
+                echo "count=0" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "status=⚠️ Search finished, but results unknown" >> $GITHUB_OUTPUT
+              echo "count=?" >> $GITHUB_OUTPUT
+            fi
+          elif [[ "$RAW_STATUS" =~ ^[4-5][0-9][0-9]$ ]]; then
+            echo "status=🆘 Server Error HTTP $RAW_STATUS" >> $GITHUB_OUTPUT
             echo "count=Error" >> $GITHUB_OUTPUT
-          elif [[ "$COUNT" == "0" ]]; then
-            echo "status=⚪ No Tickets" >> $GITHUB_OUTPUT
-            echo "count=0" >> $GITHUB_OUTPUT
-          elif [[ "$COUNT" =~ ^[0-9]+$ ]]; then
-            echo "status=✅ Success" >> $GITHUB_OUTPUT
-            echo "count=$COUNT" >> $GITHUB_OUTPUT
           else
             echo "status=❌ Test Failed / Crash" >> $GITHUB_OUTPUT
             echo "count=N/A" >> $GITHUB_OUTPUT
           fi
 
-      # 3. УВЕДОМЛЕНИЕ: Теперь обращаемся к steps.parse_data.outputs
+      # 3. УВЕДОМЛЕНИЕ
       - name: Send Telegram Notification
         if: always()
         uses: appleboy/telegram-action@master
@@ -66,7 +77,7 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
+            ${{ (github.event.inputs.user_chat_id != '') && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
             
             ✈️ **Avia Search Result**
             **Status:** ${{ steps.parse_data.outputs.status }}
