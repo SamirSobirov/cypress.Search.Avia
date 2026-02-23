@@ -17,54 +17,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1. Жесткая очистка перед стартом
-      - name: Cleanup and Init
-        run: |
-          rm -f api_status.txt offers_count.txt
-          echo "OFFLINE" > api_status.txt
-          echo "N/A" > offers_count.txt
-
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
           spec: cypress/e2e/avia.cy.js
           browser: chrome
         env:
+          # Чтобы Cypress видел переменные, нужен префикс CYPRESS_
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         continue-on-error: true
 
-      # 2. Обработка данных
       - name: Parse Diagnostic Data
-        id: parse_data
         if: always()
         run: |
-          # Убираем лишние пробелы
-          ST=$(cat api_status.txt | tr -d '[:space:]')
-          CNT=$(cat offers_count.txt | tr -d '[:space:]')
-          
-          echo "Debug: Status=$ST, Count=$CNT"
-
-          if [ "$ST" = "200" ]; then
-            if [ "$CNT" = "0" ]; then
-              echo "status=⚪ No Tickets" >> $GITHUB_OUTPUT
-              echo "count=0" >> $GITHUB_OUTPUT
-            elif [[ "$CNT" =~ ^[0-9]+$ ]]; then
-              echo "status=✅ Success" >> $GITHUB_OUTPUT
-              echo "count=$CNT" >> $GITHUB_OUTPUT
-            else
-              echo "status=⚠️ Invalid Data" >> $GITHUB_OUTPUT
-              echo "count=?" >> $GITHUB_OUTPUT
-            fi
-          elif [[ "$ST" =~ ^[4-5][0-9][0-9]$ ]]; then
-            echo "status=🆘 Server Error $ST" >> $GITHUB_OUTPUT
-            echo "count=Error" >> $GITHUB_OUTPUT
+          # Читаем статус API
+          if [ -f api_status.txt ]; then
+            API_STATUS=$(cat api_status.txt)
           else
-            echo "status=❌ Test Failed / Crash" >> $GITHUB_OUTPUT
-            echo "count=N/A" >> $GITHUB_OUTPUT
+            API_STATUS="UNKNOWN"
+          fi
+          
+          # Читаем количество билетов
+          if [ -f offers_count.txt ]; then
+            COUNT=$(cat offers_count.txt)
+          else
+            COUNT="N/A"
           fi
 
-      # 3. Отправка
+          # Умная логика определения статуса для телеграма
+          if [[ "$API_STATUS" -ge 400 ]]; then
+            echo "MSG_STATUS=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_ENV
+            echo "MSG_COUNT=Error" >> $GITHUB_ENV
+          elif [[ "$COUNT" == "0" ]]; then
+            echo "MSG_STATUS=⚪ No Tickets" >> $GITHUB_ENV
+            echo "MSG_COUNT=0" >> $GITHUB_ENV
+          elif [[ "$COUNT" =~ ^[0-9]+$ && "$COUNT" -gt 0 ]]; then
+            echo "MSG_STATUS=✅ Success" >> $GITHUB_ENV
+            echo "MSG_COUNT=$COUNT" >> $GITHUB_ENV
+          else
+            echo "MSG_STATUS=❌ Test Failed / Crash" >> $GITHUB_ENV
+            echo "MSG_COUNT=N/A" >> $GITHUB_ENV
+          fi
+
       - name: Send Telegram Notification
         if: always()
         uses: appleboy/telegram-action@master
@@ -76,9 +71,9 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ (github.event.inputs.user_chat_id != '') && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
             
             ✈️ **Avia Search Result**
-            **Status:** ${{ steps.parse_data.outputs.status }}
-            **Offers Found:** ${{ steps.parse_data.outputs.count }}
+            **Status:** ${{ env.MSG_STATUS }}
+            **Offers Found:** ${{ env.MSG_COUNT }}
             **Time:** ${{ github.event_name == 'schedule' && 'Hourly ⏰' || 'Manual 🔘' }}
