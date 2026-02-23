@@ -41,8 +41,12 @@ jobs:
           # Читаем данные и удаляем лишние пробелы
           API_STATUS=$(cat api_status.txt | tr -d '[:space:]' || echo "0")
           COUNT=$(cat offers_count.txt | tr -d '[:space:]' || echo "0")
-          
-          echo "Debug: API=$API_STATUS, Count=$COUNT"
+
+          # Debugging: Log the raw file contents
+          echo "Debug: Raw API_STATUS=$(cat api_status.txt)"
+          echo "Debug: Raw COUNT=$(cat offers_count.txt)"
+
+          echo "Debug: Processed API=$API_STATUS, Count=$COUNT"
 
           if [[ "$API_STATUS" -ge 400 ]]; then
             echo "status=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_OUTPUT
