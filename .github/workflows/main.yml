@@ -13,16 +13,15 @@ on:
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Очистка артефактов прошлого запуска
+      # Просто чистим, ничего не создаем
       - name: Cleanup old logs
         run: |
           rm -f api_status.txt offers_count.txt
-          echo "0" > api_status.txt
-          echo "0" > offers_count.txt
 
       - name: Cypress run
         uses: cypress-io/github-action@v6
@@ -33,46 +32,45 @@ jobs:
         env:
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        continue-on-error: true
 
       - name: Parse Diagnostic Data
         id: parse_data
         if: always()
         run: |
-          # Найти самый свежий файл api_status.txt и offers_count.txt в рабочем каталоге
-          API_FILE=$(find . -type f -name 'api_status.txt' -print0 | xargs -0 ls -1t 2>/dev/null | head -n1 || true)
-          if [ -z "$API_FILE" ]; then
-            API_FILE="api_status.txt"
+
+          # Проверяем существует ли файл offers_count.txt
+          if [ ! -f offers_count.txt ]; then
+            echo "status=❌ Test Crashed Before Writing Results" >> $GITHUB_OUTPUT
+            echo "count=N/A" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
-          OFFER_FILE=$(find . -type f -name 'offers_count.txt' -print0 | xargs -0 ls -1t 2>/dev/null | head -n1 || true)
-          if [ -z "$OFFER_FILE" ]; then
-            OFFER_FILE="offers_count.txt"
+          if [ ! -f api_status.txt ]; then
+            echo "status=❌ API Status Not Recorded" >> $GITHUB_OUTPUT
+            echo "count=N/A" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
-          # Прочитать только первую строку (содержит нужное число или статус) и удалить пробелы
-          API_STATUS=$(sed -n '1p' "$API_FILE" 2>/dev/null | tr -d '[:space:]' || echo "0")
-          COUNT=$(sed -n '1p' "$OFFER_FILE" 2>/dev/null | tr -d '[:space:]' || echo "0")
+          API_STATUS=$(cat api_status.txt | tr -d '[:space:]')
+          COUNT=$(cat offers_count.txt | tr -d '[:space:]')
 
-          # Debugging: Log file locations and raw contents
-          echo "Debug: Using API_FILE=$API_FILE"
-          echo "Debug: Raw API_STATUS=$(sed -n '1p' "$API_FILE" 2>/dev/null)"
-          echo "Debug: Using OFFER_FILE=$OFFER_FILE"
-          echo "Debug: Raw COUNT=$(sed -n '1p' "$OFFER_FILE" 2>/dev/null)"
-
-          echo "Debug: Processed API=$API_STATUS, Count=$COUNT"
+          echo "Debug API=$API_STATUS"
+          echo "Debug COUNT=$COUNT"
 
           if [[ "$API_STATUS" =~ ^[0-9]+$ && "$API_STATUS" -ge 400 ]]; then
             echo "status=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_OUTPUT
             echo "count=Error" >> $GITHUB_OUTPUT
-          elif [[ "$COUNT" == "0" || -z "$COUNT" ]]; then
-            echo "status=⚪ No Tickets Found" >> $GITHUB_OUTPUT
-            echo "count=0" >> $GITHUB_OUTPUT
+
           elif [[ "$COUNT" =~ ^[0-9]+$ && "$COUNT" -gt 0 ]]; then
             echo "status=✅ Success" >> $GITHUB_OUTPUT
             echo "count=$COUNT" >> $GITHUB_OUTPUT
+
+          elif [[ "$COUNT" == "0" ]]; then
+            echo "status=⚪ No Tickets Found" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+
           else
-            echo "status=❌ Test Failed / Crash" >> $GITHUB_OUTPUT
+            echo "status=❌ Invalid Result" >> $GITHUB_OUTPUT
             echo "count=N/A" >> $GITHUB_OUTPUT
           fi
 
@@ -84,7 +82,7 @@ jobs:
             ${{ (github.event.inputs.user_chat_id != '') && 
             github.event.inputs.user_chat_id || 
             secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }} 
+          token: ${{ secrets.TELEGRAM_TOKEN }}
           format: markdown
           message: |
             ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
