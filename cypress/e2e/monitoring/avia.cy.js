@@ -77,6 +77,10 @@ describe('Avia Product', () => {
         }
       });
 
+      // Log the count for debugging
+      cy.log(`Debug: Total ticket cards: ${allCards.length}`);
+      cy.log(`Debug: Real tickets count: ${realTicketsCount}`);
+
       if (realTicketsCount > 0) {
         // Нашли настоящие билеты
         cy.writeFile('offers_count.txt', realTicketsCount.toString());
