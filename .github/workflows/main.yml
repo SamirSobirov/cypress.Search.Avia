@@ -20,10 +20,9 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          spec: cypress/e2e/avia.cy.js
+          spec: cypress/e2e/monitoring/avia.cy.js # ИСПРАВЛЕН ПУТЬ СОГЛАСНО СТРУКТУРЕ ФОЙЛОВ
           browser: chrome
         env:
-          # Чтобы Cypress видел переменные, нужен префикс CYPRESS_
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         continue-on-error: true
@@ -31,22 +30,23 @@ jobs:
       - name: Parse Diagnostic Data
         if: always()
         run: |
-          # Читаем статус API
+          # Читаем статусы, удаляя лишние пробелы (tr -d), которые иногда добавляются в CI
           if [ -f api_status.txt ]; then
-            API_STATUS=$(cat api_status.txt)
+            API_STATUS=$(cat api_status.txt | tr -d '[:space:]')
           else
             API_STATUS="UNKNOWN"
           fi
           
-          # Читаем количество билетов
           if [ -f offers_count.txt ]; then
-            COUNT=$(cat offers_count.txt)
+            COUNT=$(cat offers_count.txt | tr -d '[:space:]')
           else
             COUNT="N/A"
           fi
 
-          # Умная логика определения статуса для телеграма
-          if [[ "$API_STATUS" -ge 400 ]]; then
+          if [[ "$API_STATUS" == "UNKNOWN" && "$COUNT" == "N/A" ]]; then
+            echo "MSG_STATUS=❌ Test Crashed (UI Error)" >> $GITHUB_ENV
+            echo "MSG_COUNT=N/A" >> $GITHUB_ENV
+          elif [[ "$API_STATUS" -ge 400 ]]; then
             echo "MSG_STATUS=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_ENV
             echo "MSG_COUNT=Error" >> $GITHUB_ENV
           elif [[ "$COUNT" == "0" ]]; then
@@ -56,9 +56,18 @@ jobs:
             echo "MSG_STATUS=✅ Success" >> $GITHUB_ENV
             echo "MSG_COUNT=$COUNT" >> $GITHUB_ENV
           else
-            echo "MSG_STATUS=❌ Test Failed / Crash" >> $GITHUB_ENV
+            echo "MSG_STATUS=❌ Unknown Test Failure" >> $GITHUB_ENV
             echo "MSG_COUNT=N/A" >> $GITHUB_ENV
           fi
+
+      # МАСТХЭВ: Сохраняем скриншоты, если тест упал
+      - name: Upload Cypress Screenshots
+        uses: actions/upload-artifact@v4
+        if: failure() || always()
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots/
+          if-no-files-found: ignore
 
       - name: Send Telegram Notification
         if: always()
