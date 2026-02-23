@@ -42,13 +42,25 @@ describe('Avia Product', () => {
     
     // Ищем в календаре дни текущего месяца, ИСКЛЮЧАЯ недоступные (прошедшие) дни
     // Кликаем по 3-му доступному дню, чтобы точно не промахнуться при смене месяцев
-    cy.get('.p-datepicker-calendar td')
-      .not('.p-datepicker-other-month')
-      .not('.p-disabled') 
-      .eq(2) 
-      .click({ force: true });
-      
-    cy.get('body').type('{esc}');
+cy.get("input[placeholder='Когда']").click();
+
+const targetDay = new Date();
+
+targetDay.setDate(targetDay.getDate() + 2);
+
+const dayToSelect = targetDay.getDate();
+
+
+
+cy.get('.p-datepicker-calendar td').not('.p-datepicker-other-month')
+
+.contains(new RegExp(`^${dayToSelect}$`))
+
+.click({ force: true });
+
+cy.get('body').type('{esc}');
+
+cy.wait(1000);
 
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
