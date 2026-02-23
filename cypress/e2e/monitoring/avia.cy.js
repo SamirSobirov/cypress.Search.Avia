@@ -1,11 +1,14 @@
 describe('Avia Product', () => {
   it('Search Flow', () => {
+    // 0. ПОДГОТОВКА: Удаляем старый результат, чтобы бот не брал старые данные при ошибке
+    cy.exec('rm offers_count.txt', { failOnNonZeroExit: false });
+
     cy.viewport(1280, 800);
     cy.intercept('POST', '**/offers**').as('apiSearch');
 
     cy.visit('https://test.globaltravel.space/home');
 
-   // 1. ЛОГИН 
+    // 1. ЛОГИН 
     cy.visit('https://test.globaltravel.space/sign-in'); 
 
     cy.xpath("(//input[contains(@class,'input')])[1]").should('be.visible')
@@ -15,7 +18,6 @@ describe('Avia Product', () => {
       .type(Cypress.env('LOGIN_PASSWORD'), { log: false }).type('{enter}');
 
     cy.url({ timeout: 20000 }).should('include', '/home');
-    
     cy.get('body').should('not.contain', 'Ошибка');
 
     // 2. ОТКУДА
@@ -48,27 +50,23 @@ describe('Avia Product', () => {
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
-// 6. ПРОВЕРКА РЕЗУЛЬТАТА
-// Сначала ждем ответа от сервера, чтобы быть уверенными, что данные пришли
-cy.wait('@apiSearch', { timeout: 30000 }).then((interception) => {
-  cy.log('API Status:', interception.response.statusCode);
-  
-  // Даем фронтенду 2-3 секунды, чтобы отрендерить все карточки из ответа
-  cy.wait(3000); 
+    // 6. ПРОВЕРКА РЕЗУЛЬТАТА
+    // Ждем именно завершения сетевого запроса
+    cy.wait('@apiSearch', { timeout: 40000 }).then((interception) => {
+      cy.log('Статус API:', interception.response.statusCode);
+      
+      // Ждем, пока исчезнут лоадеры и появятся карточки
+      cy.get('.ticket-card', { timeout: 15000 })
+        .should('exist') // Сначала проверяем существование в DOM
+        .then(($tickets) => {
+          const count = $tickets.length;
+          cy.log(`Найдено билетов: ${count}`);
 
-  // Теперь считаем карточки, когда DOM стабилизировался
-  cy.get('.ticket-card', { timeout: 10000 })
-    .should('have.length.at.least', 1) // Убеждаемся, что хоть что-то есть
-    .then(($tickets) => {
-      const count = $tickets.length;
-      cy.log(`Найдено билетов: ${count}`);
-      
-      // Записываем финальное число
-      cy.writeFile('offers_count.txt', count.toString());
-      
-      // Финальная проверка для Cypress
-      expect(count).to.be.greaterThan(0);
+          // Записываем актуальное число в файл для бота
+          cy.writeFile('offers_count.txt', count.toString());
+          
+          expect(count).to.be.greaterThan(0);
+        });
     });
-});
   });
 });
