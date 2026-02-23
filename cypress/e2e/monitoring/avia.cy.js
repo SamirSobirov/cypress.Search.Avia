@@ -1,15 +1,11 @@
 describe('Avia Product', () => {
   it('Search Flow', () => {
-    // Вместо жесткого rm используем writeFile, чтобы просто обнулить данные
-    // Это не вызывает ошибок в консоли и всегда работает
-    cy.writeFile('offers_count.txt', '0');
-
     cy.viewport(1280, 800);
     cy.intercept('POST', '**/offers**').as('apiSearch');
 
     cy.visit('https://test.globaltravel.space/home');
 
-    // 1. ЛОГИН 
+   // 1. ЛОГИН 
     cy.visit('https://test.globaltravel.space/sign-in'); 
 
     cy.xpath("(//input[contains(@class,'input')])[1]").should('be.visible')
@@ -19,6 +15,7 @@ describe('Avia Product', () => {
       .type(Cypress.env('LOGIN_PASSWORD'), { log: false }).type('{enter}');
 
     cy.url({ timeout: 20000 }).should('include', '/home');
+    
     cy.get('body').should('not.contain', 'Ошибка');
 
     // 2. ОТКУДА
@@ -51,23 +48,20 @@ describe('Avia Product', () => {
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
-    // 6. ПРОВЕРКА РЕЗУЛЬТАТА
-    // Увеличиваем таймаут ожидания ответа от сервера до 60 секунд
-    cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
-      cy.log('Статус API:', interception.response.statusCode);
-      
-      // Ждем появления карточек. Используем 'have.length.at.least', чтобы Cypress ждал отрисовки
-      cy.get('.ticket-card', { timeout: 20000 })
-        .should('have.length.at.least', 1) 
-        .then(($tickets) => {
-          const count = $tickets.length;
-          cy.log(`Найдено билетов: ${count}`);
+// 6. ПРОВЕРКА РЕЗУЛЬТАТА
+    cy.get('.ticket-card', { timeout: 40000 }).should('be.visible');
 
-          // Если дошли сюда — перезаписываем файл реальным числом
-          cy.writeFile('offers_count.txt', count.toString());
-          
-          expect(count).to.be.greaterThan(0);
-        });
+    cy.get('.ticket-card').then(($tickets) => {
+      const count = $tickets.length;
+      cy.log(` Найдено билетов: ${count}`);
+
+      cy.writeFile('offers_count.txt', count.toString());
+      
+      cy.wait('@apiSearch').then((interception) => {
+        cy.log('Последний статус API:', interception.response.statusCode);
+      });
+
+      expect(count).to.be.greaterThan(0);
     });
   });
 });

@@ -21,7 +21,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cypress run
-        id: cypress
         uses: cypress-io/github-action@v6
         with:
           spec: cypress/e2e/avia.cy.js
@@ -37,7 +36,6 @@ jobs:
             VALUE=$(cat offers_count.txt)
             echo "OFFERS_COUNT=$VALUE" >> $GITHUB_ENV
           else
-            # Если тест упал и файл не создался, ставим 0, чтобы не слать старые данные
             echo "OFFERS_COUNT=0" >> $GITHUB_ENV
           fi
 
@@ -52,9 +50,10 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Testing**' }}
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing' || '📢 **hourly Testing**' }}
             
             ✈️ **Avia Search Result**
-            **Status:** ${{ steps.cypress.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+            **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
             **Offers Found:** ${{ env.OFFERS_COUNT }}
             **Time:** ${{ github.event_name == 'schedule' && 'hourly Testing ⏰' || 'Manual Testing 🔘' }}
+            
