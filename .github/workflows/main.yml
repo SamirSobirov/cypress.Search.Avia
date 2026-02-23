@@ -29,6 +29,7 @@ jobs:
         with:
           spec: cypress/e2e/avia.cy.js
           browser: chrome
+          config: defaultCommandTimeout=60000,pageLoadTimeout=120000
         env:
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}

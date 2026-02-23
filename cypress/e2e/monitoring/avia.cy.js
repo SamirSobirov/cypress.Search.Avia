@@ -43,53 +43,51 @@ describe('Avia Product', () => {
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
-    // 6. УМНАЯ ПРОВЕРКА (С УЧЕТОМ ДОЛГОЙ ЗАГРУЗКИ)
-    
-    // Ждем первый ответ сервера, чтобы записать статус API (жив ли бэкенд в принципе)
-    cy.wait('@apiSearch', { timeout: 30000 }).then((interception) => {
-      const statusCode = interception.response.statusCode;
-      cy.writeFile('api_status.txt', statusCode.toString());
+   // 6. УМНАЯ ПРОВЕРКА БЕЗ ХАРДКОДА ВРЕМЕНИ
 
-      if (statusCode >= 400) {
-        cy.log('🆘 Ошибка сервера API!');
-        cy.writeFile('offers_count.txt', 'ERROR');
-        return; // Прерываем дальнейшие проверки
-      }
-    });
+cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
+  const statusCode = interception.response.statusCode;
+  cy.writeFile('api_status.txt', statusCode.toString());
 
-    // Если бэкенд жив (200), начинается магия.
-    // Так как авиа-поиск делает множество запросов и билеты появляются не сразу,
-    // даем интерфейсу время на прогрузку всех поставщиков.
-    cy.wait(15000); // Жесткое ожидание 15 секунд для стабилизации DOM (важно для CI/CD)
+  if (statusCode >= 400) {
+    cy.log('🆘 Ошибка сервера API!');
+    cy.writeFile('offers_count.txt', 'ERROR');
+    return;
+  }
+});
 
-    cy.get('body').then(($body) => {
-      // Ищем все элементы с классом ticket-card
-      const allCards = $body.find('.ticket-card');
-      
-      let realTicketsCount = 0;
+// Ждем либо появления билетов, либо сообщения "ничего не найдено"
+cy.get('body', { timeout: 60000 }).should(($body) => {
+  const hasTickets = $body.find('.ticket-card:contains("Купить")').length > 0
+    || $body.find('.ticket-card:contains("Выбрать")').length > 0
+    || $body.find('.ticket-card:contains("UZS")').length > 0;
 
-      // Перебираем каждую карточку и проверяем, есть ли внутри нее текст реального билета
-      // Скелетоны пустые, а в реальном билете есть кнопка "Купить" или "Выбрать"
-      allCards.each((index, el) => {
-        const cardText = Cypress.$(el).text();
-        if (cardText.includes('Купить') || cardText.includes('Выбрать') || cardText.includes('UZS')) {
-          realTicketsCount++;
-        }
-      });
+  const hasEmptyState = $body.text().includes('ничего не найдено')
+    || $body.text().includes('Нет результатов');
 
-      // Log the count for debugging
-      cy.log(`Debug: Total ticket cards: ${allCards.length}`);
-      cy.log(`Debug: Real tickets count: ${realTicketsCount}`);
+  expect(hasTickets || hasEmptyState).to.be.true;
+});
 
-      if (realTicketsCount > 0) {
-        // Нашли настоящие билеты
-        cy.writeFile('offers_count.txt', realTicketsCount.toString());
-        cy.log(`✅ Найдено реальных билетов: ${realTicketsCount}`);
-      } else {
-        // Билетов нет (либо ничего не найдено, либо страница пустая)
-        cy.writeFile('offers_count.txt', '0');
-        cy.log('⚪ Билетов не найдено');
-      }
-    });
+// После того как DOM стабилен — считаем билеты
+cy.get('.ticket-card').then(($cards) => {
+
+  let realTicketsCount = 0;
+
+  $cards.each((index, el) => {
+    const text = Cypress.$(el).text();
+    if (
+      text.includes('Купить') ||
+      text.includes('Выбрать') ||
+      text.includes('UZS')
+    ) {
+      realTicketsCount++;
+    }
+  });
+
+  cy.log(`Debug: Total cards: ${$cards.length}`);
+  cy.log(`Debug: Real tickets: ${realTicketsCount}`);
+
+  cy.writeFile('offers_count.txt', realTicketsCount.toString());
+});
   });
 });
