@@ -49,19 +49,26 @@ describe('Avia Product', () => {
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
 // 6. ПРОВЕРКА РЕЗУЛЬТАТА
-    cy.get('.ticket-card', { timeout: 40000 }).should('be.visible');
+// Сначала ждем ответа от сервера, чтобы быть уверенными, что данные пришли
+cy.wait('@apiSearch', { timeout: 30000 }).then((interception) => {
+  cy.log('API Status:', interception.response.statusCode);
+  
+  // Даем фронтенду 2-3 секунды, чтобы отрендерить все карточки из ответа
+  cy.wait(3000); 
 
-    cy.get('.ticket-card').then(($tickets) => {
+  // Теперь считаем карточки, когда DOM стабилизировался
+  cy.get('.ticket-card', { timeout: 10000 })
+    .should('have.length.at.least', 1) // Убеждаемся, что хоть что-то есть
+    .then(($tickets) => {
       const count = $tickets.length;
-      cy.log(` Найдено билетов: ${count}`);
-
+      cy.log(`Найдено билетов: ${count}`);
+      
+      // Записываем финальное число
       cy.writeFile('offers_count.txt', count.toString());
       
-      cy.wait('@apiSearch').then((interception) => {
-        cy.log('Последний статус API:', interception.response.statusCode);
-      });
-
+      // Финальная проверка для Cypress
       expect(count).to.be.greaterThan(0);
     });
+});
   });
 });
