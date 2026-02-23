@@ -1,7 +1,7 @@
 describe('Avia Product', () => {
   it('Search Flow', () => {
-    // 0. ПОДГОТОВКА: Удаляем старый результат, чтобы бот не брал старые данные при ошибке
-    cy.exec('rm offers_count.txt', { failOnNonZeroExit: false });
+    // 0. СТРАХОВКА: Сразу записываем 0. Если тест упадет дальше, бот покажет 0, а не старые данные.
+    cy.writeFile('offers_count.txt', '0');
 
     cy.viewport(1280, 800);
     cy.intercept('POST', '**/offers**').as('apiSearch');
@@ -51,18 +51,18 @@ describe('Avia Product', () => {
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
     // 6. ПРОВЕРКА РЕЗУЛЬТАТА
-    // Ждем именно завершения сетевого запроса
-    cy.wait('@apiSearch', { timeout: 40000 }).then((interception) => {
+    // Увеличиваем таймаут ожидания ответа от сервера до 60 секунд
+    cy.wait('@apiSearch', { timeout: 60000 }).then((interception) => {
       cy.log('Статус API:', interception.response.statusCode);
       
-      // Ждем, пока исчезнут лоадеры и появятся карточки
-      cy.get('.ticket-card', { timeout: 15000 })
-        .should('exist') // Сначала проверяем существование в DOM
+      // Ждем появления карточек. Используем 'have.length.at.least', чтобы Cypress ждал отрисовки
+      cy.get('.ticket-card', { timeout: 20000 })
+        .should('have.length.at.least', 1) 
         .then(($tickets) => {
           const count = $tickets.length;
           cy.log(`Найдено билетов: ${count}`);
 
-          // Записываем актуальное число в файл для бота
+          // Если дошли сюда — перезаписываем файл реальным числом
           cy.writeFile('offers_count.txt', count.toString());
           
           expect(count).to.be.greaterThan(0);
