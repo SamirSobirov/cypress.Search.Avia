@@ -13,9 +13,6 @@ on:
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
-    env:
-      OFFERS_COUNT: 0 
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,19 +21,43 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           spec: cypress/e2e/avia.cy.js
+          browser: chrome
         env:
-          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+          # Чтобы Cypress видел переменные, нужен префикс CYPRESS_
+          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         continue-on-error: true
 
-      - name: Read Offers Count
+      - name: Parse Diagnostic Data
         if: always()
         run: |
-          if [ -f offers_count.txt ]; then
-            VALUE=$(cat offers_count.txt)
-            echo "OFFERS_COUNT=$VALUE" >> $GITHUB_ENV
+          # Читаем статус API
+          if [ -f api_status.txt ]; then
+            API_STATUS=$(cat api_status.txt)
           else
-            echo "OFFERS_COUNT=0" >> $GITHUB_ENV
+            API_STATUS="UNKNOWN"
+          fi
+          
+          # Читаем количество билетов
+          if [ -f offers_count.txt ]; then
+            COUNT=$(cat offers_count.txt)
+          else
+            COUNT="N/A"
+          fi
+
+          # Умная логика определения статуса для телеграма
+          if [[ "$API_STATUS" -ge 400 ]]; then
+            echo "MSG_STATUS=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_ENV
+            echo "MSG_COUNT=Error" >> $GITHUB_ENV
+          elif [[ "$COUNT" == "0" ]]; then
+            echo "MSG_STATUS=⚪ No Tickets" >> $GITHUB_ENV
+            echo "MSG_COUNT=0" >> $GITHUB_ENV
+          elif [[ "$COUNT" =~ ^[0-9]+$ && "$COUNT" -gt 0 ]]; then
+            echo "MSG_STATUS=✅ Success" >> $GITHUB_ENV
+            echo "MSG_COUNT=$COUNT" >> $GITHUB_ENV
+          else
+            echo "MSG_STATUS=❌ Test Failed / Crash" >> $GITHUB_ENV
+            echo "MSG_COUNT=N/A" >> $GITHUB_ENV
           fi
 
       - name: Send Telegram Notification
@@ -50,10 +71,9 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }} 
           format: markdown
           message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing' || '📢 **hourly Testing**' }}
+            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
             
             ✈️ **Avia Search Result**
-            **Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Error' }}
-            **Offers Found:** ${{ env.OFFERS_COUNT }}
-            **Time:** ${{ github.event_name == 'schedule' && 'hourly Testing ⏰' || 'Manual Testing 🔘' }}
-            
+            **Status:** ${{ env.MSG_STATUS }}
+            **Offers Found:** ${{ env.MSG_COUNT }}
+            **Time:** ${{ github.event_name == 'schedule' && 'Hourly ⏰' || 'Manual 🔘' }}
