@@ -20,7 +20,7 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          spec: cypress/e2e/monitoring/avia.cy.js # ИСПРАВЛЕН ПУТЬ СОГЛАСНО СТРУКТУРЕ ФОЙЛОВ
+          spec: cypress/e2e/monitoring/avia.cy.js 
           browser: chrome
         env:
           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
