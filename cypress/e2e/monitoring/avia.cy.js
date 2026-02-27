@@ -37,10 +37,11 @@ describe('Avia Product', () => {
     cy.wait(1000);
     cy.get('#to').type('{enter}');
     
-    // Кликаем первый раз
-    cy.get("input[placeholder='Когда']").should('be.visible').click();
+   // 4. ДАТА (Надежная логика смены месяцев)
+    cy.get("input[placeholder='Когда']").should('be.visible').click({ force: true });
 
     cy.get('body').then(($body) => {
+      // Если календарь не вылез с первого клика - дублируем
       if ($body.find('.p-datepicker-calendar').length === 0) {
         cy.get("input[placeholder='Когда']").click({ force: true });
       }
@@ -48,26 +49,35 @@ describe('Avia Product', () => {
 
     cy.get('.p-datepicker-calendar').should('be.visible');
 
+    // JS Date автоматически учитывает високосные года и переход месяцев (27 фев + 2 = 1 марта)
     const today = new Date();
-    const targetDay = new Date();
-    targetDay.setDate(today.getDate() + 2);
+    const targetDate = new Date();
+    targetDate.setDate(today.getDate() + 2);
 
-    const dayToSelect = targetDay.getDate();
+    const dayToSelect = targetDate.getDate();       // Число (например, 1)
+    const targetMonth = targetDate.getMonth();      // Целевой месяц
+    const currentMonth = today.getMonth();          // Текущий месяц
 
-    if (targetDay.getMonth() !== today.getMonth()) {
-      cy.get('.p-datepicker-next').should('be.visible').click({ force: true });
-      cy.wait(500); 
+    // Если дата выпадает на следующий месяц (или год)
+    if (targetMonth !== currentMonth) {
+      cy.get('.p-datepicker-next')
+        .filter(':visible') // Ищем только видимую кнопку
+        .first() 
+        .should('be.visible')
+        .click({ force: true });
+      cy.wait(500); // Обязательно даем время на анимацию перелистывания
     }
 
-    cy.get('.p-datepicker-calendar td')
-      .not('.p-datepicker-other-month')
-      .not('.p-disabled') 
+    // Ищем точное число ТОЛЬКО внутри активного месяца и кликаем
+    cy.get('.p-datepicker-calendar').filter(':visible')
+      .find('td:not(.p-datepicker-other-month):not(.p-disabled)')
       .contains(new RegExp(`^${dayToSelect}$`))
+      .first() // Гарантирует, что кликнет только один раз
       .click({ force: true });
 
+    // Закрываем календарь
     cy.get('body').type('{esc}');
     cy.wait(1000);
-
     // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
