@@ -37,48 +37,41 @@ describe('Avia Product', () => {
     cy.wait(1000);
     cy.get('#to').type('{enter}');
     
-   // 4. ДАТА (Надежная логика смены месяцев)
+   // 4. ДАТА 
     cy.get("input[placeholder='Когда']").should('be.visible').click({ force: true });
 
     cy.get('body').then(($body) => {
-      // Если календарь не вылез с первого клика - дублируем
       if ($body.find('.p-datepicker-calendar').length === 0) {
         cy.get("input[placeholder='Когда']").click({ force: true });
       }
     });
 
     cy.get('.p-datepicker-calendar').should('be.visible');
-
-    // JS Date автоматически учитывает високосные года и переход месяцев (27 фев + 2 = 1 марта)
     const today = new Date();
     const targetDate = new Date();
     targetDate.setDate(today.getDate() + 2);
 
-    const dayToSelect = targetDate.getDate();       // Число (например, 1)
-    const targetMonth = targetDate.getMonth();      // Целевой месяц
-    const currentMonth = today.getMonth();          // Текущий месяц
+    const dayToSelect = targetDate.getDate();  
+    const targetMonth = targetDate.getMonth(); 
+    const currentMonth = today.getMonth();  
 
-    // Если дата выпадает на следующий месяц (или год)
     if (targetMonth !== currentMonth) {
       cy.get('.p-datepicker-next')
-        .filter(':visible') // Ищем только видимую кнопку
+        .filter(':visible') 
         .first() 
         .should('be.visible')
         .click({ force: true });
-      cy.wait(500); // Обязательно даем время на анимацию перелистывания
+      cy.wait(500); 
     }
 
-    // Ищем точное число ТОЛЬКО внутри активного месяца и кликаем
     cy.get('.p-datepicker-calendar').filter(':visible')
       .find('td:not(.p-datepicker-other-month):not(.p-disabled)')
       .contains(new RegExp(`^${dayToSelect}$`))
-      .first() // Гарантирует, что кликнет только один раз
+      .first() 
       .click({ force: true });
 
-    // Закрываем календарь
     cy.get('body').type('{esc}');
     cy.wait(1000);
-    // 5. ПОИСК
     cy.get('#search-btn').should('be.visible').click({ force: true });
 
     // 6. УМНАЯ ПРОВЕРКА
