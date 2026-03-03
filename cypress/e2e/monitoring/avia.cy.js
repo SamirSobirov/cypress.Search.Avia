@@ -7,7 +7,6 @@ describe('Avia Product', () => {
 
   it('Search Flow with Smart Diagnostic', () => {
     cy.viewport(1280, 800);
-
     cy.intercept({ method: 'POST', url: '**/offers**' }).as('apiSearch');
 
     // 1. ЛОГИН 
