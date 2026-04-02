@@ -1,88 +1,88 @@
-name: AutoTest Search Avia
+# name: AutoTest Search Avia
 
-on:
-  schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
-    inputs:
-      user_chat_id:
-        description: 'ID чата для личного ответа'
-        required: false
-        default: ''
+# on:
+#   schedule:
+#     - cron: '0 * * * *'
+#   workflow_dispatch:
+#     inputs:
+#       user_chat_id:
+#         description: 'ID чата для личного ответа'
+#         required: false
+#         default: ''
 
-jobs:
-  cypress-run:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+# jobs:
+#   cypress-run:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
 
-      - name: Cypress run
-        uses: cypress-io/github-action@v6
-        with:
-          spec: cypress/e2e/monitoring/avia.cy.js 
-          browser: chrome
-        env:
-          CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-          CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        continue-on-error: true
+#       - name: Cypress run
+#         uses: cypress-io/github-action@v6
+#         with:
+#           spec: cypress/e2e/monitoring/avia.cy.js 
+#           browser: chrome
+#         env:
+#           CYPRESS_LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+#           CYPRESS_LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+#         continue-on-error: true
 
-      - name: Parse Diagnostic Data
-        if: always()
-        run: |
-          # Читаем статусы, удаляя лишние пробелы (tr -d), которые иногда добавляются в CI
-          if [ -f api_status.txt ]; then
-            API_STATUS=$(cat api_status.txt | tr -d '[:space:]')
-          else
-            API_STATUS="UNKNOWN"
-          fi
+#       - name: Parse Diagnostic Data
+#         if: always()
+#         run: |
+#           # Читаем статусы, удаляя лишние пробелы (tr -d), которые иногда добавляются в CI
+#           if [ -f api_status.txt ]; then
+#             API_STATUS=$(cat api_status.txt | tr -d '[:space:]')
+#           else
+#             API_STATUS="UNKNOWN"
+#           fi
           
-          if [ -f offers_count.txt ]; then
-            COUNT=$(cat offers_count.txt | tr -d '[:space:]')
-          else
-            COUNT="N/A"
-          fi
+#           if [ -f offers_count.txt ]; then
+#             COUNT=$(cat offers_count.txt | tr -d '[:space:]')
+#           else
+#             COUNT="N/A"
+#           fi
 
-          if [[ "$API_STATUS" == "UNKNOWN" && "$COUNT" == "N/A" ]]; then
-            echo "MSG_STATUS=❌ Test Crashed (UI Error)" >> $GITHUB_ENV
-            echo "MSG_COUNT=N/A" >> $GITHUB_ENV
-          elif [[ "$API_STATUS" -ge 400 ]]; then
-            echo "MSG_STATUS=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_ENV
-            echo "MSG_COUNT=Error" >> $GITHUB_ENV
-          elif [[ "$COUNT" == "0" ]]; then
-            echo "MSG_STATUS=⚪ No Tickets" >> $GITHUB_ENV
-            echo "MSG_COUNT=0" >> $GITHUB_ENV
-          elif [[ "$COUNT" =~ ^[0-9]+$ && "$COUNT" -gt 0 ]]; then
-            echo "MSG_STATUS=✅ Success" >> $GITHUB_ENV
-            echo "MSG_COUNT=$COUNT" >> $GITHUB_ENV
-          else
-            echo "MSG_STATUS=❌ Unknown Test Failure" >> $GITHUB_ENV
-            echo "MSG_COUNT=N/A" >> $GITHUB_ENV
-          fi
+#           if [[ "$API_STATUS" == "UNKNOWN" && "$COUNT" == "N/A" ]]; then
+#             echo "MSG_STATUS=❌ Test Crashed (UI Error)" >> $GITHUB_ENV
+#             echo "MSG_COUNT=N/A" >> $GITHUB_ENV
+#           elif [[ "$API_STATUS" -ge 400 ]]; then
+#             echo "MSG_STATUS=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_ENV
+#             echo "MSG_COUNT=Error" >> $GITHUB_ENV
+#           elif [[ "$COUNT" == "0" ]]; then
+#             echo "MSG_STATUS=⚪ No Tickets" >> $GITHUB_ENV
+#             echo "MSG_COUNT=0" >> $GITHUB_ENV
+#           elif [[ "$COUNT" =~ ^[0-9]+$ && "$COUNT" -gt 0 ]]; then
+#             echo "MSG_STATUS=✅ Success" >> $GITHUB_ENV
+#             echo "MSG_COUNT=$COUNT" >> $GITHUB_ENV
+#           else
+#             echo "MSG_STATUS=❌ Unknown Test Failure" >> $GITHUB_ENV
+#             echo "MSG_COUNT=N/A" >> $GITHUB_ENV
+#           fi
 
-      # МАСТХЭВ: Сохраняем скриншоты, если тест упал
-      - name: Upload Cypress Screenshots
-        uses: actions/upload-artifact@v4
-        if: failure() || always()
-        with:
-          name: cypress-screenshots
-          path: cypress/screenshots/
-          if-no-files-found: ignore
+#       # МАСТХЭВ: Сохраняем скриншоты, если тест упал
+#       - name: Upload Cypress Screenshots
+#         uses: actions/upload-artifact@v4
+#         if: failure() || always()
+#         with:
+#           name: cypress-screenshots
+#           path: cypress/screenshots/
+#           if-no-files-found: ignore
 
-      - name: Send Telegram Notification
-        if: always()
-        uses: appleboy/telegram-action@master
-        with:
-          to: >-
-            ${{ (github.event.inputs.user_chat_id != '') && 
-            github.event.inputs.user_chat_id || 
-            secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }} 
-          format: markdown
-          message: |
-            ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
+#       - name: Send Telegram Notification
+#         if: always()
+#         uses: appleboy/telegram-action@master
+#         with:
+#           to: >-
+#             ${{ (github.event.inputs.user_chat_id != '') && 
+#             github.event.inputs.user_chat_id || 
+#             secrets.TELEGRAM_CHAT_ID }}
+#           token: ${{ secrets.TELEGRAM_TOKEN }} 
+#           format: markdown
+#           message: |
+#             ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
             
-            ✈️ **Avia Search Result**
-            **Status:** ${{ env.MSG_STATUS }}
-            **Offers Found:** ${{ env.MSG_COUNT }}
-            **Time:** ${{ github.event_name == 'schedule' && 'Hourly ⏰' || 'Manual 🔘' }}
+#             ✈️ **Avia Search Result**
+#             **Status:** ${{ env.MSG_STATUS }}
+#             **Offers Found:** ${{ env.MSG_COUNT }}
+#             **Time:** ${{ github.event_name == 'schedule' && 'Hourly ⏰' || 'Manual 🔘' }}
