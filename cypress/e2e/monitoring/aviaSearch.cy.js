@@ -120,8 +120,14 @@ describe('Avia search flow', { pageLoadTimeout: 120000 }, () => {
       .click({ force: true });
 
     cy.log('Ожидаем результаты поиска');
-    // Ждём появления хотя бы одного оффера
-    cy.get('div.offer-card', { timeout: 45000 }).should('exist');
+    // Фиксируем статус API поиска для отчёта
+    cy.wait('@apiSearch', { timeout: 45000 }).then((interception) => {
+      const status = interception.response?.statusCode || 0;
+      cy.writeFile('api_status.txt', `${status}`);
+    });
+
+    // Ждём первую порцию офферов (polling), чтобы не посчитать 0 раньше времени
+    cy.wait('@apiPoll', { timeout: 45000 });
 
     // Офферы догружаются порциями через polling (/api/avia/poll?count=50&cursor=...),
     // поэтому дожидаемся окончания подгрузки: количество карточек считаем стабильным,
@@ -129,13 +135,15 @@ describe('Avia search flow', { pageLoadTimeout: 120000 }, () => {
     const REQUIRED_STABLE_CHECKS = 3;
     const MAX_ATTEMPTS = 40;
 
-    const waitForOffersToSettle = (prevCount = 0, stableChecks = 0, attempt = 0) => {
+    // Считаем через body.find, чтобы отсутствие офферов не роняло тест (валидное «0»)
+    const countOffers = () => cy.get('body').then(($body) => $body.find('div.offer-card').length);
+
+    const waitForOffersToSettle = (prevCount = -1, stableChecks = 0, attempt = 0) => {
       if (stableChecks >= REQUIRED_STABLE_CHECKS || attempt >= MAX_ATTEMPTS) {
         return;
       }
       cy.wait(1500);
-      cy.get('div.offer-card').then(($cards) => {
-        const currentCount = $cards.length;
+      countOffers().then((currentCount) => {
         const nextStable = currentCount === prevCount ? stableChecks + 1 : 0;
         cy.log(`Подгрузка офферов… текущее количество: ${currentCount}`);
         waitForOffersToSettle(currentCount, nextStable, attempt + 1);
@@ -146,9 +154,9 @@ describe('Avia search flow', { pageLoadTimeout: 120000 }, () => {
 
     // Финальный точный подсчёт по классу offer-card
     cy.log('Считаем офферы');
-    cy.get('div.offer-card').then((cards) => {
-      const count = cards.length;
+    countOffers().then((count) => {
       cy.log(`Найдено офферов: ${count}`);
+      cy.writeFile('offers_count.txt', `${count}`);
       expect(count).to.be.greaterThan(0);
     });
   });
