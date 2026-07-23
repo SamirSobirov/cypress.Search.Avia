@@ -84,6 +84,5 @@ jobs:
             ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
 
             ✈️ **Avia Search Result**
-            🕐 **Time:** ${{ github.event_name == 'schedule' && 'Hourly ⏰' || 'Manual 🔘' }}
-            📊 **Status:** ${{ env.MSG_STATUS }}
-            🎫 **Offers Found:** ${{ env.MSG_COUNT }}
+             **Status:** ${{ env.MSG_STATUS }}
+             **Offers Found:** ${{ env.MSG_COUNT }}

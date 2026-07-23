@@ -130,16 +130,26 @@ describe('Avia search flow', { pageLoadTimeout: 120000 }, () => {
     cy.wait('@apiPoll', { timeout: 45000 });
 
     // Офферы догружаются порциями через polling (/api/avia/poll?count=50&cursor=...),
-    // поэтому дожидаемся окончания подгрузки: количество карточек считаем стабильным,
-    // когда оно не меняется несколько замеров подряд.
+    // причём в CI (headless Chrome) рендер идёт заметно медленнее, чем локально.
+    // Логика ожидания:
+    //  1) ждём появления ХОТЯ БЫ одного оффера (до MAX_ATTEMPTS), чтобы не посчитать 0
+    //     раньше времени, пока страница ещё показывает скелетоны-заглушки;
+    //  2) как только офферы появились — ждём стабилизации количества
+    //     (не меняется REQUIRED_STABLE_CHECKS замеров подряд — значит подгрузка завершена).
+    // Ноль отдаём только если за весь таймаут офферы так и не появились (реально нет билетов).
     const REQUIRED_STABLE_CHECKS = 3;
-    const MAX_ATTEMPTS = 40;
+    const MAX_ATTEMPTS = 60; // 60 * 1500ms = до 90с ожидания под медленный CI
 
     // Считаем через body.find, чтобы отсутствие офферов не роняло тест (валидное «0»)
     const countOffers = () => cy.get('body').then(($body) => $body.find('div.offer-card').length);
 
     const waitForOffersToSettle = (prevCount = -1, stableChecks = 0, attempt = 0) => {
-      if (stableChecks >= REQUIRED_STABLE_CHECKS || attempt >= MAX_ATTEMPTS) {
+      // Останавливаемся только когда офферы уже появились И их количество стабилизировалось
+      if (prevCount > 0 && stableChecks >= REQUIRED_STABLE_CHECKS) {
+        return;
+      }
+      // Предохранитель от бесконечного ожидания (например, билетов действительно нет)
+      if (attempt >= MAX_ATTEMPTS) {
         return;
       }
       cy.wait(1500);
