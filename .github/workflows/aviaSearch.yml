@@ -44,19 +44,19 @@ jobs:
           fi
 
           if [[ "$API_STATUS" == "UNKNOWN" && "$COUNT" == "N/A" ]]; then
-            echo "MSG_STATUS=❌ Test Crashed (UI Error)" >> $GITHUB_ENV
+            echo "MSG_STATUS=🔴 Test Crashed (UI Error)" >> $GITHUB_ENV
             echo "MSG_COUNT=N/A" >> $GITHUB_ENV
           elif [[ "$API_STATUS" =~ ^[0-9]+$ && "$API_STATUS" -ge 400 ]]; then
-            echo "MSG_STATUS=🆘 Server Error HTTP $API_STATUS" >> $GITHUB_ENV
+            echo "MSG_STATUS=🔴 Server Error HTTP $API_STATUS" >> $GITHUB_ENV
             echo "MSG_COUNT=Error" >> $GITHUB_ENV
           elif [[ "$COUNT" == "0" ]]; then
             echo "MSG_STATUS=⚪ No Tickets" >> $GITHUB_ENV
             echo "MSG_COUNT=0" >> $GITHUB_ENV
           elif [[ "$COUNT" =~ ^[0-9]+$ && "$COUNT" -gt 0 ]]; then
-            echo "MSG_STATUS=✅ Success" >> $GITHUB_ENV
+            echo "MSG_STATUS=🟢 Success" >> $GITHUB_ENV
             echo "MSG_COUNT=$COUNT" >> $GITHUB_ENV
           else
-            echo "MSG_STATUS=❌ Unknown Test Failure" >> $GITHUB_ENV
+            echo "MSG_STATUS=🔴 Unknown Test Failure" >> $GITHUB_ENV
             echo "MSG_COUNT=N/A" >> $GITHUB_ENV
           fi
 
@@ -83,6 +83,7 @@ jobs:
           message: |
             ${{ github.event.inputs.user_chat_id != '' && '👤 **Manual Testing**' || '📢 **Hourly Monitoring**' }}
 
-            ✈️ **Avia Search Result**
-             **Status:** ${{ env.MSG_STATUS }}
-             **Offers Found:** ${{ env.MSG_COUNT }}
+            📂 **Module:** ✈️ Avia Search Result
+            📊 **Status:** ${{ env.MSG_STATUS }}
+
+            **Offers Found:** ${{ env.MSG_COUNT }}
