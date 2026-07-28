@@ -17,6 +17,64 @@ const getFutureDate = (days) => {
   return date;
 };
 
+const RU_MONTHS = [
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+];
+
+// Выбирает дату в открытом PrimeVue-календаре. При необходимости листает месяцы
+// вперёд (кнопкой p-datepicker-next-button), пока в заголовке .p-datepicker-title
+// не появится нужный месяц/год, — иначе на конце месяца выбирался бы день прошлого
+// месяца (disabled). Так каждый месяц работает без правок.
+const pickDatepickerDate = (date) => {
+  const day = String(date.getDate());
+  const monthName = RU_MONTHS[date.getMonth()];
+  const year = String(date.getFullYear());
+
+  // Кликаем нужный день: точное совпадение числа, не из соседнего месяца и не disabled.
+  const clickDay = () => {
+    cy.get('td.p-datepicker-day-cell:not(.p-datepicker-other-month) span.p-datepicker-day', {
+      timeout: 15000,
+    })
+      .filter((i, el) => {
+        const td = el.closest('td');
+        const disabled =
+          el.classList.contains('p-disabled') ||
+          el.getAttribute('data-p-disabled') === 'true' ||
+          (td && td.classList.contains('p-disabled'));
+        return el.textContent.trim() === day && !disabled;
+      })
+      .first()
+      .should('be.visible')
+      .click({ force: true });
+  };
+
+  // Листаем вперёд, пока левый заголовок не покажет нужный месяц/год.
+  const ensureMonth = (attemptsLeft) => {
+    cy.get('.p-datepicker-title', { timeout: 15000 })
+      .first()
+      .invoke('text')
+      .then((text) => {
+        const t = text.trim().toLowerCase();
+        if (t.includes(monthName) && t.includes(year)) {
+          clickDay();
+        } else if (attemptsLeft > 0) {
+          cy.get('button.p-datepicker-next-button, [data-pc-name="pcnextbutton"]', {
+            timeout: 10000,
+          })
+            .first()
+            .click({ force: true });
+          cy.wait(400);
+          ensureMonth(attemptsLeft - 1);
+        } else {
+          throw new Error(`Не удалось долистать календарь до «${monthName} ${year}»`);
+        }
+      });
+  };
+
+  ensureMonth(14);
+};
+
 describe('Avia search flow', { pageLoadTimeout: 120000 }, () => {
   it('Авторизация и поиск билетов TAS → MOW без обратного билета', () => {
     const origin = 'Tas';
@@ -95,7 +153,6 @@ describe('Avia search flow', { pageLoadTimeout: 120000 }, () => {
     cy.wait(500);
 
     const targetDate = getFutureDate(4);
-    const targetDay = `${targetDate.getDate()}`;
 
     cy.log('Открываем выбор даты');
     cy.get('button.avia-date-range__field, button.avia-date-range__field[data-v-3712d418], button[data-testid="date-field"]', { timeout: 20000 })
@@ -104,10 +161,7 @@ describe('Avia search flow', { pageLoadTimeout: 120000 }, () => {
       .click({ force: true });
 
     cy.log('Выбираем дату в календаре');
-    cy.get('td.p-datepicker-day-cell:not(.p-datepicker-other-month) span.p-datepicker-day', { timeout: 15000 })
-      .contains(new RegExp(`^${targetDay}$`))
-      .should('be.visible')
-      .click({ force: true });
+    pickDatepickerDate(targetDate);
 
     cy.log('Нажимаем "Без обратного билета"');
     cy.get('button.avia-date-range__no-return, button[class*="no-return"], button')
